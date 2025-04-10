@@ -150,15 +150,15 @@ function createFloatingButton() {
         }
     });
 
-
-
     // Drag functionality
     let isDragging = false;
+    let wasDragged = false; // Flag to track if a drag happened
     let startX, startY, startBottom, startRight;
 
     button.addEventListener('mousedown', (e) => {
         if (e.button !== 0) return; // Only left click
         isDragging = true;
+        wasDragged = false; // Reset the drag tracking flag
         button.classList.add('dragging');
         
         // Get initial position
@@ -174,6 +174,15 @@ function createFloatingButton() {
 
     document.addEventListener('mousemove', (e) => {
         if (!isDragging) return;
+        
+        // Calculate movement distance to determine if this is a drag
+        const moveX = Math.abs(e.clientX - startX);
+        const moveY = Math.abs(e.clientY - startY);
+        
+        // If moved more than a few pixels, consider it a drag
+        if (moveX > 3 || moveY > 3) {
+            wasDragged = true;
+        }
         
         // Calculate new position
         const deltaX = e.clientX - startX;
@@ -207,8 +216,12 @@ function createFloatingButton() {
 
     // Add click handler
     button.addEventListener('click', async (e) => {
-        // Only trigger if not dragging and not right-click
-        if (isDragging || e.button === 2) return;
+        // Only trigger if not a drag operation and is a left click
+        if (wasDragged || e.button !== 0) {
+            // Reset the drag flag
+            wasDragged = false;
+            return;
+        }
         
         try {
             // Get clipboard content
@@ -289,7 +302,6 @@ function showTooltip(message) {
         tooltip.classList.remove('visible');
     }, 2000);
 }
-
 
 // Listen for changes to clipboard monitoring setting
 chrome.storage.onChanged.addListener((changes, namespace) => {
@@ -499,4 +511,3 @@ function createShareButton() {
 
 // Initialize
 createFloatingButton();
-createShareButton(); 
