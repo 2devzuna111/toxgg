@@ -290,12 +290,6 @@ function showTooltip(message) {
     }, 2000);
 }
 
-// Initialize clipboard monitoring
-chrome.storage.local.get(['clipboardMonitor'], result => {
-    if (result.clipboardMonitor !== false) {
-        startClipboardMonitoring();
-    }
-});
 
 // Listen for changes to clipboard monitoring setting
 chrome.storage.onChanged.addListener((changes, namespace) => {
@@ -411,5 +405,98 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 
+// Create and add the share button
+function createShareButton() {
+    const button = document.createElement('button');
+    button.id = 'tox-share-button';
+    button.innerHTML = `
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"></path>
+            <polyline points="16 6 12 2 8 6"></polyline>
+            <line x1="12" y1="2" x2="12" y2="15"></line>
+        </svg>
+        Share
+    `;
+    
+    // Add styles
+    const style = document.createElement('style');
+    style.textContent = `
+        #tox-share-button {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background-color: #6366f1;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            z-index: 999999;
+            transition: all 0.2s;
+        }
+        
+        #tox-share-button:hover {
+            background-color: #4f46e5;
+        }
+        
+        #tox-share-button svg {
+            width: 16px;
+            height: 16px;
+        }
+        
+        .tox-notification {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            border-radius: 4px;
+            color: white;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            font-size: 14px;
+            z-index: 999999;
+            opacity: 1;
+            transition: opacity 0.3s ease;
+        }
+        
+        .tox-notification.success {
+            background-color: #4CAF50;
+        }
+        
+        .tox-notification.error {
+            background-color: #f44336;
+        }
+        
+        .tox-notification.fade-out {
+            opacity: 0;
+        }
+    `;
+    document.head.appendChild(style);
+    
+    // Add click handler
+    button.addEventListener('click', async () => {
+        try {
+            const text = await navigator.clipboard.readText();
+            if (text) {
+                await sendToWebhooks(text);
+                await updateHistory(text);
+                showNotification('Content shared successfully');
+            } else {
+                showNotification('No content in clipboard', true);
+            }
+        } catch (error) {
+            console.error('Error reading clipboard:', error);
+            showNotification('Failed to share content', true);
+        }
+    });
+    
+    document.body.appendChild(button);
+}
+
 // Initialize
-createFloatingButton(); 
+createFloatingButton();
+createShareButton(); 

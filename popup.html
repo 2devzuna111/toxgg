@@ -27,17 +27,16 @@
         .header {
             display: flex;
             align-items: center;
-            padding: 16px 48px 16px 16px;
+            justify-content: space-between;
+            padding: 16px;
             border-bottom: 1px solid var(--border);
             background-color: var(--bg-secondary);
-            position: relative;
         }
 
         .logo {
             display: flex;
             align-items: center;
             gap: 8px;
-            flex: 1;
         }
 
         .logo img {
@@ -171,9 +170,6 @@
         }
 
         .settings-button {
-            position: absolute;
-            top: 16px;
-            right: 16px;
             background: transparent;
             border: none;
             color: var(--text-secondary);
@@ -308,28 +304,19 @@
             <img src="icons/48px.png" alt="Tox">
             <span class="logo-text">Tox</span>
         </div>
-        <button class="settings-button" id="openSettings" title="Open Settings">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor">
-                <path d="M8 10C9.10457 10 10 9.10457 10 8C10 6.89543 9.10457 6 8 6C6.89543 6 6 6.89543 6 8C6 9.10457 6.89543 10 8 10Z" stroke-width="1.5"/>
-                <path d="M12.8 8.8C12.6 9.2 12.5 9.6 12.5 10C12.5 10.4 12.6 10.8 12.8 11.2L11.2 12.8C10.8 12.6 10.4 12.5 10 12.5C9.6 12.5 9.2 12.6 8.8 12.8L7.2 11.2C7.4 10.8 7.5 10.4 7.5 10C7.5 9.6 7.4 9.2 7.2 8.8L8.8 7.2C9.2 7.4 9.6 7.5 10 7.5C10.4 7.5 10.8 7.4 11.2 7.2L12.8 8.8Z" stroke-width="1.5"/>
-            </svg>
-            Settings
-        </button>
         <div class="user">
-            <div class="avatar" id="avatar">U</div>
-            <span class="user-status">Guest</span>
+            <div class="avatar" id="userAvatar">U</div>
+            <span class="user-status" id="userStatus">Guest</span>
+            <button class="settings-button" id="openSettings">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 15a3 3 0 100-6 3 3 0 000 6z" />
+                    <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 0 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H15a1.65 1.65 0 001 0 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V15z" />
+                </svg>
+            </button>
         </div>
     </div>
 
     <div class="section">
-        <div class="monitor-toggle">
-            <span class="section-title">Clipboard Monitor</span>
-            <label class="toggle">
-                <input type="checkbox" id="clipboardToggle" checked>
-                <span class="slider"></span>
-            </label>
-        </div>
-
         <div class="webhook-section">
             <div class="section-title">Discord Webhook</div>
             <input type="text" class="webhook-input" id="webhookName" placeholder="Enter webhook name">
