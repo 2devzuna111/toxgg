@@ -218,7 +218,6 @@ function createFloatingButton() {
     button.addEventListener('click', async (e) => {
         // Only trigger if not a drag operation and is a left click
         if (wasDragged || e.button !== 0) {
-            // Reset the drag flag
             wasDragged = false;
             return;
         }
@@ -232,51 +231,90 @@ function createFloatingButton() {
                 return;
             }
             
-            // Get webhooks from storage
-            const { webhooks = [] } = await chrome.storage.local.get(['webhooks']);
+            // Get user info and group
+            const { webhooks = [], username = 'Anonymous', groupId = '' } = 
+                await chrome.storage.local.get(['webhooks', 'username', 'groupId']);
             
-            if (!webhooks || webhooks.length === 0) {
-                showTooltip('No webhooks configured');
-                return;
-            }
-
-            // Send to all webhooks
-            const sendPromises = webhooks.map(webhook => 
-                fetch(webhook.url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        content: text,
-                        username: 'Tox Clipboard'
+            // Get current page info
+            const currentUrl = window.location.href;
+            const pageTitle = document.title;
+            
+            // Track success status
+            let successCount = 0;
+            
+            // Send to Discord webhooks
+            if (webhooks && webhooks.length > 0) {
+                // Send to all webhooks
+                const sendPromises = webhooks.map(webhook => 
+                    fetch(webhook.url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            content: text,
+                            username: 'Tox Clipboard'
+                        })
                     })
-                })
-            );
+                );
 
-            try {
-                const results = await Promise.allSettled(sendPromises);
-                const successCount = results.filter(r => r.status === 'fulfilled').length;
-                
-                if (successCount > 0) {
-                    showTooltip(`Sent to ${successCount} webhook${successCount > 1 ? 's' : ''}!`);
-                    
-                    // Save to history
-                    chrome.storage.local.get(['caHistory'], (result) => {
-                        const history = result.caHistory || [];
-                        history.unshift({
-                            text,
-                            timestamp: new Date().toISOString()
-                        });
-                        // Keep only last 50 items
-                        if (history.length > 50) history.pop();
-                        chrome.storage.local.set({ caHistory: history });
-                    });
-                } else {
-                    showTooltip('Failed to send to any webhook');
+                try {
+                    const results = await Promise.allSettled(sendPromises);
+                    successCount = results.filter(r => r.status === 'fulfilled').length;
+                } catch (error) {
+                    console.error('Error sending to webhooks:', error);
                 }
-            } catch (error) {
-                console.error('Error sending to webhooks:', error);
-                showTooltip('Failed to send');
             }
+            
+            // Share with group if in a group
+            if (groupId) {
+                try {
+                    // Send to background script to handle Supabase
+                    chrome.runtime.sendMessage({
+                        action: 'shareWithGroup',
+                        data: {
+                            content: text,
+                            url: currentUrl,
+                            title: pageTitle,
+                            sender: username,
+                            groupId: groupId,
+                            timestamp: Date.now()
+                        }
+                    });
+                    
+                    // Show success regardless of webhook status
+                    if (successCount > 0) {
+                        showTooltip(`Sent to ${successCount} webhook${successCount > 1 ? 's' : ''} and group!`);
+                    } else {
+                        showTooltip('Shared with your group!');
+                    }
+                } catch (error) {
+                    console.error('Error sharing with group:', error);
+                    
+                    // Show partial success if webhooks worked
+                    if (successCount > 0) {
+                        showTooltip(`Sent to ${successCount} webhook${successCount > 1 ? 's' : ''} but group sharing failed`);
+                    } else {
+                        showTooltip('Failed to share. Check console.');
+                    }
+                }
+            } else if (successCount > 0) {
+                // Only webhook success, no group
+                showTooltip(`Sent to ${successCount} webhook${successCount > 1 ? 's' : ''}!`);
+            } else {
+                // No group, no webhook success
+                showTooltip('No webhooks or group configured');
+            }
+            
+            // Save to history
+            chrome.storage.local.get(['caHistory'], (result) => {
+                const history = result.caHistory || [];
+                history.unshift({
+                    text,
+                    timestamp: new Date().toISOString()
+                });
+                // Keep only last 50 items
+                if (history.length > 50) history.pop();
+                chrome.storage.local.set({ caHistory: history });
+            });
         } catch (error) {
             console.error('Error:', error);
             showTooltip('Error: Check console');

@@ -135,4 +135,163 @@ async function sendToDiscord(activity, webhookUrl) {
 async function sendToGroup(activity, groupId) {
     // TODO: Implement Firebase/WebSocket group sharing
     console.log('Sending to group:', groupId, activity);
-} 
+}
+
+// background.js - Supabase Integration for Group Sharing
+
+// Supabase configuration
+const SUPABASE_URL = 'https://dfylxewxjcndeghaqdqz.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRmeWx4ZXd4amNuZGVnaGFxZHF6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQzMTYwOTAsImV4cCI6MjA1OTg5MjA5MH0.GSOt3kgM4gFUy_rVBdRtlCmlUyXNT_1OQ9AZ6XSbTZI';
+
+// We'll load the Supabase client dynamically
+let supabase = null;
+
+// Initialize the extension
+async function initialize() {
+  try {
+    // Load Supabase client
+    await loadSupabaseScript();
+    console.log('Supabase client loaded');
+    
+    // Initialize the client
+    supabase = supabaseJs.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    console.log('Supabase client initialized');
+    
+    // Get user's group ID
+    const { groupId } = await new Promise(resolve => {
+      chrome.storage.local.get(['groupId'], resolve);
+    });
+    
+    if (groupId) {
+      subscribeToGroupShares(groupId);
+    }
+  } catch (error) {
+    console.error('Initialization error:', error);
+  }
+}
+
+// Load the Supabase client script
+function loadSupabaseScript() {
+  return new Promise((resolve, reject) => {
+    // Create script element
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js';
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error('Failed to load Supabase client'));
+    document.head.appendChild(script);
+  });
+}
+
+// Listen for messages from content scripts
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.action === 'shareWithGroup') {
+    shareWithGroup(message.data)
+      .then(() => sendResponse({ success: true }))
+      .catch(error => sendResponse({ success: false, error: error.message }));
+    return true; // Required for async sendResponse
+  }
+});
+
+// Share content with group
+async function shareWithGroup(data) {
+  try {
+    // Insert into Supabase
+    const { data: result, error } = await supabase
+      .from('group_shares')
+      .insert([{
+        content: data.content,
+        url: data.url,
+        title: data.title,
+        sender: data.sender,
+        group_id: data.groupId,
+        timestamp: data.timestamp
+      }]);
+      
+    if (error) throw error;
+    console.log('Content shared with group:', data.groupId);
+    return true;
+  } catch (error) {
+    console.error('Error sharing with group:', error);
+    throw error;
+  }
+}
+
+// Subscribe to real-time updates for a group
+async function subscribeToGroupShares(groupId) {
+  try {
+    // Get current username to filter out own messages
+    const { username = 'Anonymous' } = await new Promise(resolve => {
+      chrome.storage.local.get(['username'], resolve);
+    });
+    
+    console.log(`Subscribing to group: ${groupId}, as user: ${username}`);
+    
+    // Subscribe to changes using Supabase realtime
+    const channel = supabase
+      .channel(`group-${groupId}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'group_shares',
+        filter: `group_id=eq.${groupId}`
+      }, payload => {
+        console.log('Received new group share:', payload);
+        
+        // Skip notifications for your own shares
+        if (payload.new.sender !== username) {
+          showNotification(payload.new);
+        }
+      })
+      .subscribe((status) => {
+        console.log(`Supabase subscription status: ${status}`);
+      });
+      
+    return channel;
+  } catch (error) {
+    console.error('Error subscribing to group shares:', error);
+  }
+}
+
+// Listen for changes to groupId
+chrome.storage.onChanged.addListener((changes, namespace) => {
+  if (namespace === 'local' && changes.groupId) {
+    const newGroupId = changes.groupId.newValue;
+    if (newGroupId) {
+      subscribeToGroupShares(newGroupId);
+    }
+  }
+});
+
+// Show notification for a new share
+function showNotification(share) {
+  const notificationId = `share-${Date.now()}`;
+  chrome.notifications.create(notificationId, {
+    type: 'basic',
+    iconUrl: 'icon48.png',
+    title: `New share from ${share.sender}`,
+    message: share.content.substring(0, 100) + (share.content.length > 100 ? '...' : ''),
+    contextMessage: share.title || 'Shared content',
+    buttons: [{ title: 'View' }],
+    priority: 2
+  });
+  
+  // Store the share data to use when the notification is clicked
+  chrome.storage.local.set({
+    [`notification_${notificationId}`]: share
+  });
+}
+
+// Handle notification button clicks
+chrome.notifications.onButtonClicked.addListener((notificationId, buttonIndex) => {
+  if (buttonIndex === 0) {  // "View" button
+    chrome.storage.local.get([`notification_${notificationId}`], (result) => {
+      const share = result[`notification_${notificationId}`];
+      if (share && share.url) {
+        chrome.tabs.create({ url: share.url });
+      }
+    });
+  }
+});
+
+// Start initialization
+initialize(); 

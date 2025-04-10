@@ -8,9 +8,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // Initialize user info
 async function initializeUserInfo() {
-    const { username = 'Guest', userAvatar = 'U' } = await chrome.storage.local.get(['username', 'userAvatar']);
+    const { username = 'Guest', userAvatar = 'U', groupId = '' } = 
+        await chrome.storage.local.get(['username', 'userAvatar', 'groupId']);
+    
     document.getElementById('userStatus').textContent = username;
     document.getElementById('userAvatar').textContent = userAvatar;
+    
+    // Display group info
+    const groupDisplay = document.getElementById('groupDisplay');
+    groupDisplay.textContent = groupId ? `Group: ${groupId}` : 'No Group';
 }
 
 // Load webhooks
@@ -105,6 +111,34 @@ function setupEventListeners() {
             const newWebhooks = webhooks.filter(w => w.url !== url);
             await chrome.storage.local.set({ webhooks: newWebhooks });
             await loadWebhooks();
+        }
+    });
+    
+    // Join group
+    document.getElementById('joinGroup').addEventListener('click', async () => {
+        const groupIdInput = document.getElementById('groupIdInput');
+        const groupId = groupIdInput.value.trim();
+        const status = document.getElementById('groupStatus');
+        
+        if (!groupId) {
+            showStatus(status, 'Please enter a group ID', 'error');
+            return;
+        }
+        
+        try {
+            // Save the group ID
+            await chrome.storage.local.set({ groupId });
+            
+            // Update the display
+            document.getElementById('groupDisplay').textContent = `Group: ${groupId}`;
+            
+            // Clear the input
+            groupIdInput.value = '';
+            
+            showStatus(status, 'Joined group successfully', 'success');
+        } catch (error) {
+            showStatus(status, 'Error joining group: ' + error.message, 'error');
+            console.error('Error joining group:', error);
         }
     });
 }

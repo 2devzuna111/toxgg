@@ -2,14 +2,16 @@
   "manifest_version": 3,
   "name": "Tox",
   "version": "1.0",
-  "description": "Share clipboard content to Discord",
+  "description": "Share clipboard content to Discord and groups",
   "permissions": [
     "storage",
     "clipboardRead",
-    "clipboardWrite"
+    "clipboardWrite",
+    "notifications"
   ],
   "host_permissions": [
-    "<all_urls>"
+    "<all_urls>",
+    "https://*.supabase.co/*"
   ],
   "background": {
     "service_worker": "background.js"
