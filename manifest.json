@@ -1,5 +1,5 @@
 {
-  "manifest_version": 3,
+  "manifest_version": 2,
   "name": "Tox",
   "version": "1.0",
   "description": "Share clipboard content to Discord and groups",
@@ -7,14 +7,12 @@
     "storage",
     "clipboardRead",
     "clipboardWrite",
-    "notifications"
-  ],
-  "host_permissions": [
-    "<all_urls>",
-    "https://*.supabase.co/*"
+    "notifications",
+    "<all_urls>"
   ],
   "background": {
-    "service_worker": "background.js"
+    "page": "background.html",
+    "persistent": true
   },
   "content_scripts": [
     {
@@ -22,7 +20,7 @@
       "js": ["content.js"]
     }
   ],
-  "action": {
+  "browser_action": {
     "default_popup": "popup.html",
     "default_icon": {
       "16": "icons/16px.png",

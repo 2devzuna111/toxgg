@@ -345,6 +345,136 @@
         </div>
     </div>
 
+    <!-- Add a diagnostic section before the error logs -->
+    <div id="diagnostic-section" style="margin-top: 20px; border-top: 1px solid #e5e7eb; padding-top: 15px;">
+        <h2 style="font-size: 16px; font-weight: 600; color: #1f2937; margin-bottom: 10px;">Connection Diagnostic</h2>
+        <div style="margin-bottom: 10px;">
+            <button id="test-supabase-btn" class="btn btn-sm" style="background-color: #6366f1; color: white;">
+                Test Supabase Connection
+            </button>
+        </div>
+        <div id="test-result-container" style="display: none; max-height: 150px; overflow-y: auto; font-size: 12px; font-family: monospace; background-color: #f9fafb; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
+            <div>Running test...</div>
+        </div>
+    </div>
+
+    <!-- Add an error log viewer section -->
+    <div id="error-log-section" style="display: none; margin-top: 20px; border-top: 1px solid #e5e7eb; padding-top: 15px;">
+        <h2 style="font-size: 16px; font-weight: 600; color: #1f2937; margin-bottom: 10px;">Error Logs</h2>
+        <div style="margin-bottom: 10px;">
+            <button id="toggle-logs-btn" class="btn btn-sm" style="background-color: #ef4444; color: white;">
+                Show Error Logs
+            </button>
+            <button id="clear-logs-btn" class="btn btn-sm" style="background-color: #6b7280; color: white; margin-left: 5px;">
+                Clear Logs
+            </button>
+        </div>
+        <div id="error-logs-container" style="display: none; max-height: 200px; overflow-y: auto; font-size: 12px; font-family: monospace; background-color: #f9fafb; padding: 10px; border-radius: 4px;">
+            <div style="color: #9ca3af; margin-bottom: 5px;">No errors logged</div>
+        </div>
+    </div>
+
     <script src="popup.js"></script>
+    <script>
+        // Add this to your existing popup.js script or include inline
+        document.addEventListener('DOMContentLoaded', function() {
+            // Test Supabase connection
+            document.getElementById('test-supabase-btn').addEventListener('click', function() {
+                const resultContainer = document.getElementById('test-result-container');
+                resultContainer.style.display = 'block';
+                resultContainer.innerHTML = '<div>Testing Supabase connection...</div>';
+                
+                // Call the background script test function
+                chrome.runtime.sendMessage({
+                    action: 'testSupabase'
+                }, function(response) {
+                    if (chrome.runtime.lastError) {
+                        resultContainer.innerHTML = `
+                            <div style="color: #ef4444; font-weight: bold;">Error:</div>
+                            <div style="margin-top: 5px;">${chrome.runtime.lastError.message}</div>
+                        `;
+                        return;
+                    }
+                    
+                    if (response && response.success) {
+                        resultContainer.innerHTML = `
+                            <div style="color: #10b981; font-weight: bold;">Connection Successful!</div>
+                            <div style="margin-top: 5px;">${response.message}</div>
+                        `;
+                    } else {
+                        resultContainer.innerHTML = `
+                            <div style="color: #ef4444; font-weight: bold;">Connection Failed</div>
+                            <div style="margin-top: 5px;">Stage: ${response.stage || 'Unknown'}</div>
+                            <div style="margin-top: 2px;">Error: ${response.error || 'Unknown error'}</div>
+                        `;
+                        
+                        if (response.errorCode) {
+                            resultContainer.innerHTML += `
+                                <div style="margin-top: 2px;">Error Code: ${response.errorCode}</div>
+                            `;
+                        }
+                    }
+                });
+            });
+            
+            // Show error logs section if there are any errors
+            chrome.storage.local.get(['errorLogs'], function(result) {
+                if (result.errorLogs && result.errorLogs.length > 0) {
+                    document.getElementById('error-log-section').style.display = 'block';
+                    updateErrorLogs(result.errorLogs);
+                }
+            });
+            
+            // Toggle logs visibility
+            document.getElementById('toggle-logs-btn').addEventListener('click', function() {
+                const logsContainer = document.getElementById('error-logs-container');
+                const isVisible = logsContainer.style.display !== 'none';
+                
+                logsContainer.style.display = isVisible ? 'none' : 'block';
+                this.textContent = isVisible ? 'Show Error Logs' : 'Hide Error Logs';
+            });
+            
+            // Clear error logs
+            document.getElementById('clear-logs-btn').addEventListener('click', function() {
+                chrome.storage.local.set({errorLogs: []}, function() {
+                    document.getElementById('error-logs-container').innerHTML = 
+                        '<div style="color: #9ca3af; margin-bottom: 5px;">No errors logged</div>';
+                    document.getElementById('error-logs-container').style.display = 'none';
+                    document.getElementById('toggle-logs-btn').textContent = 'Show Error Logs';
+                });
+            });
+            
+            // Function to update error logs display
+            function updateErrorLogs(logs) {
+                const container = document.getElementById('error-logs-container');
+                
+                if (!logs || logs.length === 0) {
+                    container.innerHTML = '<div style="color: #9ca3af; margin-bottom: 5px;">No errors logged</div>';
+                    return;
+                }
+                
+                container.innerHTML = '';
+                
+                logs.forEach(function(log) {
+                    const logEntry = document.createElement('div');
+                    logEntry.style.marginBottom = '10px';
+                    logEntry.style.borderBottom = '1px solid #e5e7eb';
+                    logEntry.style.paddingBottom = '5px';
+                    
+                    const timestamp = new Date(log.timestamp).toLocaleString();
+                    
+                    logEntry.innerHTML = `
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 3px;">
+                            <span style="font-weight: bold; color: #ef4444;">${log.source}</span>
+                            <span style="color: #6b7280; font-size: 10px;">${timestamp}</span>
+                        </div>
+                        <div style="margin-bottom: 3px;">${log.message}</div>
+                    `;
+                    
+                    container.appendChild(logEntry);
+                });
+            }
+        });
+    </script>
 </body>
 </html> 

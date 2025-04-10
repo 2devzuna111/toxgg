@@ -223,6 +223,13 @@ function createFloatingButton() {
         }
         
         try {
+            // First check connection to the background script
+            await checkExtensionConnection().catch(error => {
+                console.error('Connection check failed:', error);
+                showTooltip('Extension connection error. Please reload the page.');
+                throw error;
+            });
+            
             // Get clipboard content
             const text = await navigator.clipboard.readText();
             
@@ -231,95 +238,139 @@ function createFloatingButton() {
                 return;
             }
             
-            // Get user info and group
-            const { webhooks = [], username = 'Anonymous', groupId = '' } = 
-                await chrome.storage.local.get(['webhooks', 'username', 'groupId']);
-            
-            // Get current page info
-            const currentUrl = window.location.href;
-            const pageTitle = document.title;
-            
-            // Track success status
-            let successCount = 0;
-            
-            // Send to Discord webhooks
-            if (webhooks && webhooks.length > 0) {
-                // Send to all webhooks
-                const sendPromises = webhooks.map(webhook => 
-                    fetch(webhook.url, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            content: text,
-                            username: 'Tox Clipboard'
-                        })
-                    })
-                );
-
-                try {
-                    const results = await Promise.allSettled(sendPromises);
-                    successCount = results.filter(r => r.status === 'fulfilled').length;
-                } catch (error) {
-                    console.error('Error sending to webhooks:', error);
+            // Get user info and group - using callback pattern instead of await
+            chrome.storage.local.get(['webhooks', 'username', 'groupId'], (result) => {
+                const webhooks = result.webhooks || [];
+                const username = result.username || 'Anonymous';
+                const groupId = result.groupId || '';
+                
+                // Check if group ID is set
+                if (!groupId) {
+                    showTooltip('No group ID configured. Please set up a group in the extension options.');
+                    return;
                 }
-            }
-            
-            // Share with group if in a group
-            if (groupId) {
-                try {
-                    // Send to background script to handle Supabase
-                    chrome.runtime.sendMessage({
-                        action: 'shareWithGroup',
-                        data: {
-                            content: text,
-                            url: currentUrl,
-                            title: pageTitle,
-                            sender: username,
-                            groupId: groupId,
-                            timestamp: Date.now()
-                        }
+                
+                // Get current page info
+                const currentUrl = window.location.href;
+                const pageTitle = document.title;
+                
+                // Track success status
+                let successCount = 0;
+                
+                // Send to Discord webhooks
+                if (webhooks && webhooks.length > 0) {
+                    // Process webhooks
+                    const sendPromises = webhooks.map(webhook => 
+                        fetch(webhook.url, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                content: text,
+                                username: 'Tox Clipboard'
+                            })
+                        })
+                    );
+
+                    Promise.allSettled(sendPromises)
+                        .then(results => {
+                            successCount = results.filter(r => r.status === 'fulfilled').length;
+                            
+                            // Share with group if in a group
+                            processGroupSharing(text, currentUrl, pageTitle, username, groupId, successCount);
+                        })
+                        .catch(error => {
+                            console.error('Error sending to webhooks:', error);
+                            // Continue with group sharing even if webhooks fail
+                            processGroupSharing(text, currentUrl, pageTitle, username, groupId, 0);
+                        });
+                } else {
+                    // No webhooks, proceed with group sharing
+                    processGroupSharing(text, currentUrl, pageTitle, username, groupId, 0);
+                }
+                
+                // Save to history
+                chrome.storage.local.get(['caHistory'], (historyResult) => {
+                    const history = historyResult.caHistory || [];
+                    history.unshift({
+                        text,
+                        timestamp: new Date().toISOString()
                     });
+                    // Keep only last 50 items
+                    if (history.length > 50) history.pop();
+                    chrome.storage.local.set({ caHistory: history });
+                });
+            });
+            
+        } catch (error) {
+            console.error('Button click error:', error);
+            showTooltip(`Error: ${error.message}`);
+        }
+    });
+    
+    // Helper function to process group sharing
+    function processGroupSharing(text, currentUrl, pageTitle, username, groupId, successCount) {
+        if (!groupId) return;
+        
+        try {
+            // Format data for Supabase insertion
+            const shareData = {
+                content: text.trim(), // Trim whitespace
+                url: currentUrl || '',
+                title: pageTitle || '',
+                sender: username || 'Anonymous',
+                groupId: groupId,
+                timestamp: Date.now()
+            };
+            
+            console.log('Sending data to background script:', shareData);
+            
+            // Send to background script to handle Supabase insertion
+            chrome.runtime.sendMessage({
+                action: 'shareWithGroup',
+                data: shareData
+            }, response => {
+                console.log('Received response from background script:', response);
+                
+                // Check for runtime errors
+                if (chrome.runtime.lastError) {
+                    console.error('Chrome runtime error:', chrome.runtime.lastError);
+                    showTooltip(`Error: ${chrome.runtime.lastError.message}`);
+                    return;
+                }
+                
+                if (response && response.success) {
+                    // Show detailed Supabase notification
+                    showSupabaseSuccessNotification(shareData);
                     
-                    // Show success regardless of webhook status
+                    // Also show simple tooltip notification
                     if (successCount > 0) {
                         showTooltip(`Sent to ${successCount} webhook${successCount > 1 ? 's' : ''} and group!`);
                     } else {
-                        showTooltip('Shared with your group!');
+                        showTooltip('Shared with your group via Supabase!');
                     }
-                } catch (error) {
-                    console.error('Error sharing with group:', error);
+                } else {
+                    console.error('Error response from background:', response ? response.error : 'No response');
                     
-                    // Show partial success if webhooks worked
-                    if (successCount > 0) {
-                        showTooltip(`Sent to ${successCount} webhook${successCount > 1 ? 's' : ''} but group sharing failed`);
+                    // Show specific error message
+                    if (response && response.error) {
+                        showTooltip(`Error: ${response.error.substring(0, 50)}${response.error.length > 50 ? '...' : ''}`);
                     } else {
-                        showTooltip('Failed to share. Check console.');
+                        // Show partial success if webhooks worked
+                        if (successCount > 0) {
+                            showTooltip(`Sent to ${successCount} webhook${successCount > 1 ? 's' : ''} but group sharing failed`);
+                        } else {
+                            showTooltip('Failed to share with Supabase. Check background console.');
+                        }
                     }
                 }
-            } else if (successCount > 0) {
-                // Only webhook success, no group
-                showTooltip(`Sent to ${successCount} webhook${successCount > 1 ? 's' : ''}!`);
-            } else {
-                // No group, no webhook success
-                showTooltip('No webhooks or group configured');
-            }
-            
-            // Save to history
-            chrome.storage.local.get(['caHistory'], (result) => {
-                const history = result.caHistory || [];
-                history.unshift({
-                    text,
-                    timestamp: new Date().toISOString()
-                });
-                // Keep only last 50 items
-                if (history.length > 50) history.pop();
-                chrome.storage.local.set({ caHistory: history });
             });
         } catch (error) {
-            console.error('Error:', error);
-            showTooltip('Error: Check console');
+            console.error('Error sharing with group:', error);
+            
+            // Show detailed error message
+            showTooltip(`Error: ${error.message}`);
         }
-    });
+    }
 
     document.body.appendChild(button);
 }
@@ -381,35 +432,45 @@ function stopClipboardMonitoring() {
 
 async function sendToWebhooks(content) {
     try {
-        const { webhooks = [] } = await chrome.storage.local.get(['webhooks']);
-        if (webhooks.length === 0) return;
-
-        const promises = webhooks.map(webhook => 
-            fetch(webhook.url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    content: content
+        // Use callback pattern instead of await
+        chrome.storage.local.get(['webhooks'], function(result) {
+            const webhooks = result.webhooks || [];
+            if (webhooks.length === 0) return;
+            
+            const promises = webhooks.map(webhook => 
+                fetch(webhook.url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        content: content
+                    })
                 })
-            })
-        );
-
-        await Promise.all(promises);
-        showNotification('Content sent to webhooks');
+            );
+            
+            Promise.all(promises)
+                .then(() => showNotification('Content sent to webhooks'))
+                .catch(error => {
+                    console.error('Error sending to webhooks:', error);
+                    showNotification('Failed to send content to webhooks', true);
+                });
+        });
     } catch (error) {
-        console.error('Error sending to webhooks:', error);
+        console.error('Error in sendToWebhooks:', error);
         showNotification('Failed to send content to webhooks', true);
     }
 }
 
 async function updateHistory(content) {
     try {
-        const { history = [] } = await chrome.storage.local.get(['history']);
-        const newHistory = [
-            { content, timestamp: Date.now() },
-            ...history.slice(0, 49)
-        ];
-        await chrome.storage.local.set({ history: newHistory });
+        // Use callback pattern instead of await
+        chrome.storage.local.get(['history'], function(result) {
+            const history = result.history || [];
+            const newHistory = [
+                { content, timestamp: Date.now() },
+                ...history.slice(0, 49)
+            ];
+            chrome.storage.local.set({ history: newHistory });
+        });
     } catch (error) {
         console.error('Error updating history:', error);
     }
@@ -547,5 +608,145 @@ function createShareButton() {
     document.body.appendChild(button);
 }
 
+// Show a success notification when content is shared to Supabase
+function showSupabaseSuccessNotification(data) {
+    // Create or get container
+    let container = document.querySelector('.tox-supabase-notification');
+    if (!container) {
+        container = document.createElement('div');
+        container.className = 'tox-supabase-notification';
+        
+        // Apply styles
+        Object.assign(container.style, {
+            position: 'fixed',
+            bottom: '90px',
+            right: '20px',
+            backgroundColor: '#ffffff',
+            color: '#1f2937',
+            padding: '16px',
+            borderRadius: '8px',
+            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.1)',
+            zIndex: '9999',
+            maxWidth: '320px',
+            opacity: '0',
+            transform: 'translateY(20px)',
+            transition: 'all 0.3s ease',
+            border: '1px solid #e5e7eb',
+            fontFamily: 'system-ui, -apple-system, sans-serif',
+            fontSize: '14px',
+            lineHeight: '1.5',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px'
+        });
+        
+        document.body.appendChild(container);
+    }
+    
+    // Build notification content
+    container.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M8 12l2 2 6-6"></path>
+            </svg>
+            <span style="font-weight: 600; color: #111827;">Shared to Supabase</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+            <div style="display: flex; justify-content: space-between;">
+                <span style="color: #6b7280; font-size: 12px;">Content:</span>
+                <span style="font-size: 12px; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${data.content.substring(0, 50)}${data.content.length > 50 ? '...' : ''}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+                <span style="color: #6b7280; font-size: 12px;">Group ID:</span>
+                <span style="font-size: 12px;">${data.groupId}</span>
+            </div>
+            ${data.url ? `
+            <div style="display: flex; justify-content: space-between;">
+                <span style="color: #6b7280; font-size: 12px;">Source:</span>
+                <span style="font-size: 12px; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${data.title || data.url}</span>
+            </div>` : ''}
+        </div>
+    `;
+    
+    // Show the notification
+    setTimeout(() => {
+        container.style.opacity = '1';
+        container.style.transform = 'translateY(0)';
+    }, 100);
+    
+    // Auto-hide after 5 seconds
+    setTimeout(() => {
+        container.style.opacity = '0';
+        container.style.transform = 'translateY(20px)';
+        
+        // Remove from DOM after transition
+        setTimeout(() => {
+            container.remove();
+        }, 300);
+    }, 5000);
+}
+
 // Initialize
-createFloatingButton();
+document.addEventListener('DOMContentLoaded', () => {
+    createFloatingButton();
+});
+
+// Also create the button when the page is fully loaded
+window.addEventListener('load', () => {
+    if (!document.querySelector('.tox-floating-button')) {
+        createFloatingButton();
+    }
+});
+
+// Ensure button exists even on dynamic pages
+const observer = new MutationObserver(() => {
+    if (document.body && !document.querySelector('.tox-floating-button')) {
+        createFloatingButton();
+    }
+});
+
+observer.observe(document.documentElement, {
+    childList: true,
+    subtree: true
+});
+
+// Create button immediately if DOM is already loaded
+if (document.readyState !== 'loading') {
+    createFloatingButton();
+}
+
+// Add this function at the top of the file to check extension connection
+function checkExtensionConnection() {
+    // Test connection to background page
+    return new Promise((resolve, reject) => {
+        const testMessage = { action: 'ping' };
+        const timeout = setTimeout(() => {
+            reject(new Error('Background connection timeout'));
+        }, 2000);
+        
+        try {
+            chrome.runtime.sendMessage(testMessage, response => {
+                clearTimeout(timeout);
+                
+                // Check for runtime errors first
+                if (chrome.runtime.lastError) {
+                    console.error('Extension connection error:', chrome.runtime.lastError);
+                    reject(new Error(`Connection error: ${chrome.runtime.lastError.message}`));
+                    return;
+                }
+                
+                if (response && response.success) {
+                    resolve(true);
+                } else {
+                    console.error('Background page response invalid:', response);
+                    reject(new Error('Background page did not respond properly'));
+                }
+            });
+        } catch (err) {
+            clearTimeout(timeout);
+            console.error('Failed to send message to background:', err);
+            reject(err);
+        }
+    });
+}
