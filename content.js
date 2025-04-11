@@ -754,83 +754,344 @@ function createShareButton() {
     document.body.appendChild(button);
 }
 
-// Show a success notification when content is shared to Supabase
-function showSupabaseSuccessNotification(data) {
-    // Create or get container
-    let container = document.querySelector('.tox-supabase-notification');
-    if (!container) {
-        container = document.createElement('div');
-        container.className = 'tox-supabase-notification';
-        
-        // Apply styles
-        Object.assign(container.style, {
-            position: 'fixed',
-            bottom: '20px',
-            right: '20px',
-            backgroundColor: '#ffffff',
-            color: '#1f2937',
-            padding: '16px',
-            borderRadius: '8px',
-            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.1)',
-            zIndex: '9999',
-            maxWidth: '320px',
-            opacity: '0',
-            transform: 'translateY(20px)',
-            transition: 'all 0.3s ease',
-            border: '1px solid #e5e7eb',
-            fontFamily: 'system-ui, -apple-system, sans-serif',
-            fontSize: '14px',
-            lineHeight: '1.5',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '8px'
-        });
-        
-        document.body.appendChild(container);
+// Create a notification container for in-app notifications
+function createNotificationContainer() {
+    // Check if container already exists
+    if (document.querySelector('.tox-notifications-container')) {
+        return document.querySelector('.tox-notifications-container');
     }
     
-    // Build notification content
-    container.innerHTML = `
-        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2">
-                <circle cx="12" cy="12" r="10"></circle>
-                <path d="M8 12l2 2 6-6"></path>
-            </svg>
-            <span style="font-weight: 600; color: #111827;">Content shared successfully!</span>
-        </div>
-        <div style="display: flex; flex-direction: column; gap: 4px;">
-            <div style="display: flex; justify-content: space-between;">
-                <span style="color: #6b7280; font-size: 12px;">Content:</span>
-                <span style="font-size: 12px; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${data.content.substring(0, 50)}${data.content.length > 50 ? '...' : ''}</span>
-            </div>
-            <div style="display: flex; justify-content: space-between;">
-                <span style="color: #6b7280; font-size: 12px;">Group ID:</span>
-                <span style="font-size: 12px;">${data.groupId}</span>
-            </div>
-            ${data.url ? `
-            <div style="display: flex; justify-content: space-between;">
-                <span style="color: #6b7280; font-size: 12px;">From:</span>
-                <span style="font-size: 12px; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${data.url}</span>
-            </div>
-            ` : ''}
-        </div>
+    // Create container
+    const container = document.createElement('div');
+    container.className = 'tox-notifications-container';
+    
+    // Add styles
+    const style = document.createElement('style');
+    style.textContent = `
+        .tox-notifications-container {
+            position: fixed;
+            top: 50%;
+            right: 20px;
+            transform: translateY(-50%);
+            z-index: 10000;
+            width: 320px;
+            max-height: 100vh;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: none;
+        }
+        
+        .tox-notification {
+            background-color: #ffffff;
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+            pointer-events: auto;
+            animation: slideIn 0.3s ease-out forwards;
+            max-width: 100%;
+            box-sizing: border-box;
+            position: relative;
+            margin-bottom: 10px;
+        }
+        
+        .tox-notification.success {
+            border-left: none;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .tox-notification.success .notification-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        
+        .tox-notification.success .success-icon {
+            width: 24px;
+            height: 24px;
+            background-color: #10b981;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+            flex-shrink: 0;
+        }
+        
+        .tox-notification.success .success-icon svg {
+            width: 14px;
+            height: 14px;
+            color: white;
+        }
+        
+        .tox-notification.success .notification-title {
+            font-weight: 600;
+            font-size: 16px;
+            color: #111827;
+            margin: 0;
+        }
+        
+        .tox-notification.success .notification-content {
+            margin-left: 36px;
+            color: #6b7280;
+            font-size: 14px;
+        }
+        
+        .tox-notification.success .notification-detail {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 4px;
+            font-size: 14px;
+            color: #6b7280;
+        }
+        
+        .tox-notification.success .notification-detail-label {
+            font-weight: 500;
+            color: #4b5563;
+        }
+        
+        .tox-notification.success .notification-detail-value {
+            color: #6b7280;
+            text-align: right;
+        }
+        
+        .tox-notification .close-button {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: none;
+            border: none;
+            padding: 4px;
+            cursor: pointer;
+            color: #9ca3af;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 20px;
+            height: 20px;
+        }
+        
+        .tox-notification .close-button:hover {
+            background-color: #f3f4f6;
+            color: #4b5563;
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        @keyframes fadeOut {
+            from {
+                opacity: 1;
+            }
+            to {
+                opacity: 0;
+            }
+        }
     `;
     
-    // Show notification with animation
-    setTimeout(() => {
-        container.style.opacity = '1';
-        container.style.transform = 'translateY(0)';
-        
-        // Hide after 4 seconds
-        setTimeout(() => {
-            container.style.opacity = '0';
-            container.style.transform = 'translateY(20px)';
-            
-            // Remove from DOM after animation
-            setTimeout(() => container.remove(), 300);
-        }, 4000);
-    }, 10);
+    document.head.appendChild(style);
+    document.body.appendChild(container);
+    
+    return container;
 }
+
+// Show an in-app notification
+function showInAppNotification(notification, styleType = '') {
+    // Create container if it doesn't exist
+    const container = document.querySelector('.tox-notifications-container') || createNotificationContainer();
+    
+    // Create notification element
+    const notificationEl = document.createElement('div');
+    notificationEl.className = `tox-notification ${styleType}`;
+    
+    if (styleType === 'success') {
+        // Create success notification with checkmark icon
+        const header = document.createElement('div');
+        header.className = 'notification-header';
+        
+        const iconContainer = document.createElement('div');
+        iconContainer.className = 'success-icon';
+        iconContainer.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            </svg>
+        `;
+        
+        const title = document.createElement('h3');
+        title.className = 'notification-title';
+        title.textContent = notification.title || 'Content shared successfully!';
+        
+        header.appendChild(iconContainer);
+        header.appendChild(title);
+        
+        const content = document.createElement('div');
+        content.className = 'notification-content';
+        
+        // Add content details if available
+        if (notification.content) {
+            const contentDetail = document.createElement('div');
+            contentDetail.className = 'notification-detail';
+            
+            const contentLabel = document.createElement('span');
+            contentLabel.className = 'notification-detail-label';
+            contentLabel.textContent = 'Content:';
+            
+            const contentValue = document.createElement('span');
+            contentValue.className = 'notification-detail-value';
+            contentValue.textContent = notification.content;
+            
+            contentDetail.appendChild(contentLabel);
+            contentDetail.appendChild(contentValue);
+            content.appendChild(contentDetail);
+        }
+        
+        // Add group ID if available
+        if (notification.groupId) {
+            const groupDetail = document.createElement('div');
+            groupDetail.className = 'notification-detail';
+            
+            const groupLabel = document.createElement('span');
+            groupLabel.className = 'notification-detail-label';
+            groupLabel.textContent = 'Group ID:';
+            
+            const groupValue = document.createElement('span');
+            groupValue.className = 'notification-detail-value';
+            groupValue.textContent = notification.groupId;
+            
+            groupDetail.appendChild(groupLabel);
+            groupDetail.appendChild(groupValue);
+            content.appendChild(groupDetail);
+        }
+        
+        // Add URL if available
+        if (notification.url) {
+            const urlDetail = document.createElement('div');
+            urlDetail.className = 'notification-detail';
+            
+            const urlLabel = document.createElement('span');
+            urlLabel.className = 'notification-detail-label';
+            urlLabel.textContent = 'From:';
+            
+            const urlValue = document.createElement('span');
+            urlValue.className = 'notification-detail-value';
+            urlValue.textContent = notification.url.substring(0, 40) + (notification.url.length > 40 ? '...' : '');
+            
+            urlDetail.appendChild(urlLabel);
+            urlDetail.appendChild(urlValue);
+            content.appendChild(urlDetail);
+        }
+        
+        const closeBtn = document.createElement('button');
+        closeBtn.className = 'close-button';
+        closeBtn.innerHTML = '&times;';
+        closeBtn.addEventListener('click', () => {
+            notificationEl.style.animation = 'fadeOut 0.3s forwards';
+            setTimeout(() => {
+                notificationEl.remove();
+            }, 300);
+        });
+        
+        notificationEl.appendChild(header);
+        notificationEl.appendChild(content);
+        notificationEl.appendChild(closeBtn);
+    } else {
+        // Standard notification
+        const header = document.createElement('div');
+        header.className = 'notification-header';
+        
+        const title = document.createElement('h3');
+        title.className = 'notification-title';
+        title.textContent = notification.title || 'Notification';
+        
+        const closeBtn = document.createElement('button');
+        closeBtn.className = 'close-button';
+        closeBtn.innerHTML = '&times;';
+        
+        header.appendChild(title);
+        
+        const content = document.createElement('div');
+        content.className = 'notification-content';
+        content.textContent = notification.message || '';
+        
+        const footer = document.createElement('div');
+        footer.className = 'notification-footer';
+        
+        const context = document.createElement('div');
+        context.textContent = notification.context || '';
+        
+        const timestamp = document.createElement('div');
+        timestamp.textContent = new Date(notification.timestamp).toLocaleTimeString();
+        
+        footer.appendChild(context);
+        footer.appendChild(timestamp);
+        
+        closeBtn.addEventListener('click', () => {
+            notificationEl.style.animation = 'fadeOut 0.3s forwards';
+            setTimeout(() => {
+                notificationEl.remove();
+            }, 300);
+        });
+        
+        notificationEl.appendChild(closeBtn);
+        notificationEl.appendChild(header);
+        notificationEl.appendChild(content);
+        notificationEl.appendChild(footer);
+    }
+    
+    // Add to container
+    container.appendChild(notificationEl);
+    
+    // Auto remove after 5 seconds
+    setTimeout(() => {
+        if (notificationEl.parentNode) {
+            notificationEl.style.animation = 'fadeOut 0.3s forwards';
+            setTimeout(() => {
+                if (notificationEl.parentNode) {
+                    notificationEl.remove();
+                }
+            }, 300);
+        }
+    }, 5000);
+    
+    return notificationEl;
+}
+
+// Function specifically for success notifications like "Content shared successfully"
+function showSupabaseSuccessNotification(data) {
+    const notification = {
+        title: 'Content shared successfully!',
+        content: data.content || '',
+        groupId: data.groupId || '',
+        url: data.url || '',
+        timestamp: Date.now()
+    };
+    
+    return showInAppNotification(notification, 'success');
+}
+
+// Setup listener for notifications from background script
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.action === 'showInAppNotification') {
+        showInAppNotification(message.notification, message.styleType || '');
+        sendResponse({ success: true });
+    }
+    else if (message.action === 'showSuccessNotification') {
+        showSupabaseSuccessNotification(message.data);
+        sendResponse({ success: true });
+    }
+    return true;
+});
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
