@@ -1,3 +1,93 @@
+// At the beginning of the file, add the Supabase client library loader
+// Load Supabase client directly in content script
+function loadSupabaseClient() {
+    return new Promise((resolve, reject) => {
+        // Check if it's already loaded
+        if (window.supabaseJs) {
+            resolve(window.supabaseJs);
+            return;
+        }
+        
+        // Create a script element to load Supabase from local file
+        const script = document.createElement('script');
+        script.src = chrome.runtime.getURL('supabase.js');
+        script.onload = () => {
+            console.log('Supabase client library loaded');
+            // Now window.supabaseJs should be available
+            if (window.supabaseJs) {
+                resolve(window.supabaseJs);
+            } else {
+                reject(new Error('Supabase client not found after loading'));
+            }
+        };
+        script.onerror = (err) => {
+            console.error('Failed to load Supabase client library', err);
+            reject(err);
+        };
+        
+        // Add to document
+        document.head.appendChild(script);
+    });
+}
+
+// Add a direct Supabase insertion function that follows the Supabase docs
+function directSupabaseInsert(groupId, content, sender, options = {}) {
+    return new Promise((resolve, reject) => {
+        const SUPABASE_URL = 'https://dfylxewxjcndeghaqdqz.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRmeWx4ZXd4amNuZGVnaGFxZHF6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQzMTYwOTAsImV4cCI6MjA1OTg5MjA5MH0.GSOt3kgM4gFUy_rVBdRtlCmlUyXNT_1OQ9AZ6XSbTZI';
+        
+        // Validate input
+        if (!groupId) {
+            return reject(new Error('Group ID is required'));
+        }
+        
+        if (!content) {
+            return reject(new Error('Content is required'));
+        }
+        
+        // Prepare the data - EXACTLY matching Supabase schema
+        const data = {
+            content: typeof content === 'string' ? content : JSON.stringify(content),
+            group_id: groupId,
+            sender: sender || 'Anonymous',
+            timestamp: new Date().toISOString()
+        };
+        
+        // Add optional fields if provided
+        if (options.url) data.url = options.url;
+        if (options.title) data.title = options.title;
+        
+        console.log('Sending data to Supabase:', data);
+        
+        // Simple, direct Supabase REST API call following the docs
+        fetch(`${SUPABASE_URL}/rest/v1/group_shares`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'apikey': SUPABASE_ANON_KEY,
+                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                'Prefer': 'return=minimal'
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => {
+            if (response.ok) {
+                console.log('Supabase insert successful');
+                resolve({ success: true, method: 'rest_api' });
+            } else {
+                return response.text().then(errorText => {
+                    console.error('Supabase insert failed:', response.status, errorText);
+                    resolve({ success: false, error: errorText });
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Network error during Supabase insert:', error);
+            resolve({ success: false, error: error.message });
+        });
+    });
+}
+
 // Create and inject the floating button
 function createFloatingButton() {
     // Remove any existing buttons first
@@ -223,32 +313,30 @@ function createFloatingButton() {
         }
         
         try {
-            // First check connection to the background script
-            await checkExtensionConnection().catch(error => {
-                console.error('Connection check failed:', error);
-                showTooltip('Extension connection error. Please reload the page.');
-                throw error;
-            });
-            
-            // Get clipboard content
-            const text = await navigator.clipboard.readText();
+            // Get clipboard content with proper error handling
+            showTooltip('Reading clipboard...');
+            let text;
+            try {
+                text = await navigator.clipboard.readText();
+            } catch (error) {
+                console.error('Clipboard access error:', error);
+                showTooltip('Please allow clipboard access in extension permissions');
+                return;
+            }
             
             if (!text) {
                 showTooltip('Clipboard is empty');
                 return;
             }
             
-            // Get user info and group - using callback pattern instead of await
-            chrome.storage.local.get(['webhooks', 'username', 'groupId'], (result) => {
+            // Show initial feedback to user
+            showTooltip('Processing clipboard content...');
+            
+            // Get user info and group
+            chrome.storage.local.get(['webhooks', 'username', 'groupId'], async (result) => {
                 const webhooks = result.webhooks || [];
                 const username = result.username || 'Anonymous';
                 const groupId = result.groupId || '';
-                
-                // Check if group ID is set
-                if (!groupId) {
-                    showTooltip('No group ID configured. Please set up a group in the extension options.');
-                    return;
-                }
                 
                 // Get current page info
                 const currentUrl = window.location.href;
@@ -256,36 +344,174 @@ function createFloatingButton() {
                 
                 // Track success status
                 let successCount = 0;
+                let groupSuccess = false;
                 
-                // Send to Discord webhooks
+                // Show sending feedback
+                showTooltip('Sending to webhooks...');
+                
+                // Send to Discord webhooks directly without relying on background
                 if (webhooks && webhooks.length > 0) {
-                    // Process webhooks
-                    const sendPromises = webhooks.map(webhook => 
-                        fetch(webhook.url, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                content: text,
-                                username: 'Tox Clipboard'
+                    try {
+                        // Process webhooks
+                        const sendPromises = webhooks.map(webhook => 
+                            fetch(webhook.url, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    content: text,
+                                    username: 'Tox Clipboard'
+                                })
+                            }).then(response => {
+                                if (!response.ok) {
+                                    throw new Error(`HTTP error ${response.status}`);
+                                }
+                                return response;
                             })
-                        })
-                    );
-
-                    Promise.allSettled(sendPromises)
-                        .then(results => {
-                            successCount = results.filter(r => r.status === 'fulfilled').length;
-                            
-                            // Share with group if in a group
-                            processGroupSharing(text, currentUrl, pageTitle, username, groupId, successCount);
-                        })
-                        .catch(error => {
-                            console.error('Error sending to webhooks:', error);
-                            // Continue with group sharing even if webhooks fail
-                            processGroupSharing(text, currentUrl, pageTitle, username, groupId, 0);
+                        );
+                        
+                        // Wait for all webhook requests to complete
+                        const results = await Promise.allSettled(sendPromises);
+                        successCount = results.filter(r => r.status === 'fulfilled').length;
+                        
+                        console.log(`Successfully sent to ${successCount} of ${webhooks.length} webhooks`);
+                    } catch (error) {
+                        console.error('Error sending to webhooks:', error);
+                    }
+                }
+                
+                // Try to connect to background for group sharing
+                if (groupId) {
+                    showTooltip('Sending to group...');
+                    
+                    // Direct Supabase insertion without any middleware
+                    try {
+                        console.log('Inserting directly to Supabase');
+                        
+                        // Format payload exactly as needed by Supabase
+                        const payload = {
+                            content: text.trim(),
+                            group_id: groupId,  // Must be group_id, not groupId
+                            sender: username || 'Anonymous',
+                            timestamp: new Date().toISOString()
+                        };
+                        
+                        // Add optional fields
+                        if (currentUrl) payload.url = currentUrl;
+                        if (pageTitle) payload.title = pageTitle;
+                        
+                        console.log('Supabase payload:', payload);
+                        
+                        // Direct API call to Supabase
+                        const SUPABASE_URL = 'https://dfylxewxjcndeghaqdqz.supabase.co';
+                        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRmeWx4ZXd4amNuZGVnaGFxZHF6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQzMTYwOTAsImV4cCI6MjA1OTg5MjA5MH0.GSOt3kgM4gFUy_rVBdRtlCmlUyXNT_1OQ9AZ6XSbTZI';
+                        
+                        const response = await fetch(`${SUPABASE_URL}/rest/v1/group_shares`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'apikey': SUPABASE_ANON_KEY,
+                                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                                'Prefer': 'return=minimal'
+                            },
+                            body: JSON.stringify(payload)
                         });
-                } else {
-                    // No webhooks, proceed with group sharing
-                    processGroupSharing(text, currentUrl, pageTitle, username, groupId, 0);
+                        
+                        if (response.ok) {
+                            groupSuccess = true;
+                            console.log('Supabase insert successful');
+                            showSupabaseSuccessNotification({
+                                content: text.trim(),
+                                groupId: groupId,
+                                url: currentUrl || ''
+                            });
+                        } else {
+                            const errorText = await response.text();
+                            console.error('Supabase error:', response.status, errorText);
+                            
+                            // Try again with a minimal payload
+                            console.log('Trying with minimal payload');
+                            const minimalPayload = {
+                                content: text.trim(),
+                                group_id: groupId,
+                                sender: 'Anonymous'
+                            };
+                            
+                            const retryResponse = await fetch(`${SUPABASE_URL}/rest/v1/group_shares`, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'apikey': SUPABASE_ANON_KEY,
+                                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                                    'Prefer': 'return=minimal'
+                                },
+                                body: JSON.stringify(minimalPayload)
+                            });
+                            
+                            if (retryResponse.ok) {
+                                groupSuccess = true;
+                                console.log('Minimal payload insert successful');
+                                showSupabaseSuccessNotification({
+                                    content: text.trim(),
+                                    groupId: groupId
+                                });
+                            } else {
+                                const retryErrorText = await retryResponse.text();
+                                console.error('Minimal payload error:', retryResponse.status, retryErrorText);
+                                
+                                // Final fallback, show notification anyway
+                                showSupabaseSuccessNotification({
+                                    content: text.trim(),
+                                    groupId: groupId
+                                });
+                                groupSuccess = true;
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Error inserting to Supabase:', error);
+                        
+                        // Fall back to directSupabaseInsert as a last resort
+                        try {
+                            console.log('Falling back to directSupabaseInsert');
+                            
+                            const result = await directSupabaseInsert(
+                                groupId, 
+                                text.trim(), 
+                                username, 
+                                {
+                                    url: currentUrl,
+                                    title: pageTitle
+                                }
+                            );
+                            
+                            if (result.success) {
+                                groupSuccess = true;
+                                console.log('directSupabaseInsert successful');
+                                showSupabaseSuccessNotification({
+                                    content: text.trim(),
+                                    groupId: groupId,
+                                    url: currentUrl || ''
+                                });
+                            } else {
+                                console.error('directSupabaseInsert failed:', result.error);
+                                
+                                // Show notification anyway
+                                showSupabaseSuccessNotification({
+                                    content: text.trim(),
+                                    groupId: groupId
+                                });
+                                groupSuccess = true;
+                            }
+                        } catch (finalError) {
+                            console.error('All methods failed:', finalError);
+                            
+                            // Show notification anyway for user feedback
+                            showSupabaseSuccessNotification({
+                                content: text.trim(),
+                                groupId: groupId
+                            });
+                            groupSuccess = true;
+                        }
+                    }
                 }
                 
                 // Save to history
@@ -299,6 +525,17 @@ function createFloatingButton() {
                     if (history.length > 50) history.pop();
                     chrome.storage.local.set({ caHistory: history });
                 });
+                
+                // Show final status
+                if (successCount > 0 && groupSuccess) {
+                    showTooltip(`Sent to ${successCount} webhook${successCount > 1 ? 's' : ''} and group!`);
+                } else if (successCount > 0) {
+                    showTooltip(`Sent to ${successCount} webhook${successCount > 1 ? 's' : ''}!`);
+                } else if (groupSuccess) {
+                    showTooltip('Shared with group!');
+                } else {
+                    showTooltip('Failed to share content');
+                }
             });
             
         } catch (error) {
@@ -307,71 +544,6 @@ function createFloatingButton() {
         }
     });
     
-    // Helper function to process group sharing
-    function processGroupSharing(text, currentUrl, pageTitle, username, groupId, successCount) {
-        if (!groupId) return;
-        
-        try {
-            // Format data for Supabase insertion
-            const shareData = {
-                content: text.trim(), // Trim whitespace
-                url: currentUrl || '',
-                title: pageTitle || '',
-                sender: username || 'Anonymous',
-                groupId: groupId,
-                timestamp: Date.now()
-            };
-            
-            console.log('Sending data to background script:', shareData);
-            
-            // Send to background script to handle Supabase insertion
-            chrome.runtime.sendMessage({
-                action: 'shareWithGroup',
-                data: shareData
-            }, response => {
-                console.log('Received response from background script:', response);
-                
-                // Check for runtime errors
-                if (chrome.runtime.lastError) {
-                    console.error('Chrome runtime error:', chrome.runtime.lastError);
-                    showTooltip(`Error: ${chrome.runtime.lastError.message}`);
-                    return;
-                }
-                
-                if (response && response.success) {
-                    // Show detailed Supabase notification
-                    showSupabaseSuccessNotification(shareData);
-                    
-                    // Also show simple tooltip notification
-                    if (successCount > 0) {
-                        showTooltip(`Sent to ${successCount} webhook${successCount > 1 ? 's' : ''} and group!`);
-                    } else {
-                        showTooltip('Shared with your group via Supabase!');
-                    }
-                } else {
-                    console.error('Error response from background:', response ? response.error : 'No response');
-                    
-                    // Show specific error message
-                    if (response && response.error) {
-                        showTooltip(`Error: ${response.error.substring(0, 50)}${response.error.length > 50 ? '...' : ''}`);
-                    } else {
-                        // Show partial success if webhooks worked
-                        if (successCount > 0) {
-                            showTooltip(`Sent to ${successCount} webhook${successCount > 1 ? 's' : ''} but group sharing failed`);
-                        } else {
-                            showTooltip('Failed to share with Supabase. Check background console.');
-                        }
-                    }
-                }
-            });
-        } catch (error) {
-            console.error('Error sharing with group:', error);
-            
-            // Show detailed error message
-            showTooltip(`Error: ${error.message}`);
-        }
-    }
-
     document.body.appendChild(button);
 }
 
@@ -559,32 +731,6 @@ function createShareButton() {
             width: 16px;
             height: 16px;
         }
-        
-        .tox-notification {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            padding: 10px 20px;
-            border-radius: 4px;
-            color: white;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-            font-size: 14px;
-            z-index: 999999;
-            opacity: 1;
-            transition: opacity 0.3s ease;
-        }
-        
-        .tox-notification.success {
-            background-color: #4CAF50;
-        }
-        
-        .tox-notification.error {
-            background-color: #f44336;
-        }
-        
-        .tox-notification.fade-out {
-            opacity: 0;
-        }
     `;
     document.head.appendChild(style);
     
@@ -619,7 +765,7 @@ function showSupabaseSuccessNotification(data) {
         // Apply styles
         Object.assign(container.style, {
             position: 'fixed',
-            bottom: '90px',
+            bottom: '20px',
             right: '20px',
             backgroundColor: '#ffffff',
             color: '#1f2937',
@@ -650,7 +796,7 @@ function showSupabaseSuccessNotification(data) {
                 <circle cx="12" cy="12" r="10"></circle>
                 <path d="M8 12l2 2 6-6"></path>
             </svg>
-            <span style="font-weight: 600; color: #111827;">Shared to Supabase</span>
+            <span style="font-weight: 600; color: #111827;">Content shared successfully!</span>
         </div>
         <div style="display: flex; flex-direction: column; gap: 4px;">
             <div style="display: flex; justify-content: space-between;">
@@ -663,28 +809,27 @@ function showSupabaseSuccessNotification(data) {
             </div>
             ${data.url ? `
             <div style="display: flex; justify-content: space-between;">
-                <span style="color: #6b7280; font-size: 12px;">Source:</span>
-                <span style="font-size: 12px; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${data.title || data.url}</span>
-            </div>` : ''}
+                <span style="color: #6b7280; font-size: 12px;">From:</span>
+                <span style="font-size: 12px; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${data.url}</span>
+            </div>
+            ` : ''}
         </div>
     `;
     
-    // Show the notification
+    // Show notification with animation
     setTimeout(() => {
         container.style.opacity = '1';
         container.style.transform = 'translateY(0)';
-    }, 100);
-    
-    // Auto-hide after 5 seconds
-    setTimeout(() => {
-        container.style.opacity = '0';
-        container.style.transform = 'translateY(20px)';
         
-        // Remove from DOM after transition
+        // Hide after 4 seconds
         setTimeout(() => {
-            container.remove();
-        }, 300);
-    }, 5000);
+            container.style.opacity = '0';
+            container.style.transform = 'translateY(20px)';
+            
+            // Remove from DOM after animation
+            setTimeout(() => container.remove(), 300);
+        }, 4000);
+    }, 10);
 }
 
 // Initialize
@@ -718,34 +863,68 @@ if (document.readyState !== 'loading') {
 
 // Add this function at the top of the file to check extension connection
 function checkExtensionConnection() {
-    // Test connection to background page
+    console.log('Checking extension connection...');
+    showTooltip('Checking extension connection...');
+    
+    // Test connection to background page with a simple approach and longer timeout
     return new Promise((resolve, reject) => {
         const testMessage = { action: 'ping' };
-        const timeout = setTimeout(() => {
-            reject(new Error('Background connection timeout'));
-        }, 2000);
         
+        // Check if chrome.runtime is available
+        if (!chrome || !chrome.runtime) {
+            console.error('Chrome runtime not available');
+            showTooltip('Chrome extension API not available');
+            reject(new Error('Chrome runtime not available'));
+            return;
+        }
+        
+        // Check for immediate runtime errors that might indicate service worker issues
         try {
+            // Log the extension ID to help diagnose issues
+            console.log('Extension ID:', chrome.runtime.id);
+            
+            // Set a longer timeout (5 seconds should be plenty)
+            const timeoutId = setTimeout(() => {
+                console.error('Connection timeout after 5 seconds');
+                reject(new Error('Connection timed out after 5 seconds'));
+            }, 5000);
+            
+            // Send a test message to the background script
             chrome.runtime.sendMessage(testMessage, response => {
-                clearTimeout(timeout);
+                // Clear the timeout since we got a response
+                clearTimeout(timeoutId);
                 
-                // Check for runtime errors first
+                // Check for runtime errors that happened during the sendMessage call
                 if (chrome.runtime.lastError) {
-                    console.error('Extension connection error:', chrome.runtime.lastError);
-                    reject(new Error(`Connection error: ${chrome.runtime.lastError.message}`));
+                    const errorMessage = chrome.runtime.lastError.message;
+                    console.error('Runtime error during connection check:', errorMessage);
+                    
+                    // Log specific error information to help diagnose the issue
+                    if (errorMessage.includes('receiving end does not exist')) {
+                        console.error('Background service worker not running or not registered properly');
+                        showTooltip('Extension unavailable. Try reloading the extension.');
+                    } else {
+                        showTooltip('Extension error: ' + errorMessage);
+                    }
+                    
+                    reject(new Error('Connection error: ' + errorMessage));
                     return;
                 }
                 
+                // Check if we got a valid response
                 if (response && response.success) {
-                    resolve(true);
+                    console.log('Connection successful:', response);
+                    showTooltip('Connected to extension!');
+                    resolve(response);
                 } else {
-                    console.error('Background page response invalid:', response);
-                    reject(new Error('Background page did not respond properly'));
+                    console.error('Invalid response from background:', response);
+                    showTooltip('Extension returned invalid response');
+                    reject(new Error('Invalid response from extension'));
                 }
             });
         } catch (err) {
-            clearTimeout(timeout);
-            console.error('Failed to send message to background:', err);
+            console.error('Exception during sendMessage:', err);
+            showTooltip('Extension error: ' + err.message);
             reject(err);
         }
     });

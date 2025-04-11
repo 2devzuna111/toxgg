@@ -1,146 +1,191 @@
 // Initialize popup
-document.addEventListener('DOMContentLoaded', async () => {
-    await initializeUserInfo();
-    await loadWebhooks();
-    await loadHistory();
-    setupEventListeners();
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Popup initialized');
+    initializePopup();
 });
+
+async function initializePopup() {
+    try {
+        await initializeUserInfo();
+        await loadWebhooks();
+        await loadHistory();
+        setupEventListeners();
+    } catch (error) {
+        console.error('Error initializing popup:', error);
+    }
+}
 
 // Initialize user info
 async function initializeUserInfo() {
-    const { username = 'Guest', userAvatar = 'U', groupId = '' } = 
-        await chrome.storage.local.get(['username', 'userAvatar', 'groupId']);
-    
-    document.getElementById('userStatus').textContent = username;
-    document.getElementById('userAvatar').textContent = userAvatar;
-    
-    // Display group info
-    const groupDisplay = document.getElementById('groupDisplay');
-    groupDisplay.textContent = groupId ? `Group: ${groupId}` : 'No Group';
+    console.log('Initializing user info');
+    try {
+        const { username = 'Guest', userAvatar = 'U', groupId = '' } = 
+            await chrome.storage.local.get(['username', 'userAvatar', 'groupId']);
+        
+        const statusElem = document.getElementById('userStatus');
+        const avatarElem = document.getElementById('userAvatar');
+        const groupDisplay = document.getElementById('groupDisplay');
+        
+        if (statusElem) statusElem.textContent = username;
+        if (avatarElem) avatarElem.textContent = userAvatar;
+        if (groupDisplay) groupDisplay.textContent = groupId ? `Group: ${groupId}` : 'No Group';
+        
+        console.log('User info initialized:', { username, groupId });
+    } catch (error) {
+        console.error('Error initializing user info:', error);
+    }
 }
 
 // Load webhooks
 async function loadWebhooks() {
-    const { webhooks = [] } = await chrome.storage.local.get(['webhooks']);
-    const webhooksList = document.getElementById('webhooksList');
-    
-    if (webhooks.length === 0) {
-        webhooksList.innerHTML = '<div class="empty-state">No webhooks added</div>';
-        return;
-    }
-    
-    webhooksList.innerHTML = webhooks.map(webhook => `
-        <div class="webhook-item">
-            <div class="webhook-info">
-                <div class="webhook-name">${escapeHtml(webhook.name)}</div>
+    try {
+        const { webhooks = [] } = await chrome.storage.local.get(['webhooks']);
+        const webhooksList = document.getElementById('webhooksList');
+        
+        if (!webhooksList) {
+            console.error('Webhooks list element not found');
+            return;
+        }
+        
+        if (webhooks.length === 0) {
+            webhooksList.innerHTML = '<div class="empty-state">No webhooks added</div>';
+            return;
+        }
+        
+        webhooksList.innerHTML = webhooks.map(webhook => `
+            <div class="webhook-item">
+                <div class="webhook-info">
+                    <div class="webhook-name">${escapeHtml(webhook.name)}</div>
+                </div>
+                <button class="delete-webhook" data-url="${escapeHtml(webhook.url)}">Delete</button>
             </div>
-            <button class="delete-webhook" data-url="${escapeHtml(webhook.url)}">Delete</button>
-        </div>
-    `).join('');
+        `).join('');
+
+        // Add delete webhook handlers
+        const deleteButtons = webhooksList.querySelectorAll('.delete-webhook');
+        deleteButtons.forEach(button => {
+            button.addEventListener('click', async () => {
+                const url = button.dataset.url;
+                const { webhooks = [] } = await chrome.storage.local.get(['webhooks']);
+                const newWebhooks = webhooks.filter(w => w.url !== url);
+                await chrome.storage.local.set({ webhooks: newWebhooks });
+                await loadWebhooks();
+            });
+        });
+    } catch (error) {
+        console.error('Error loading webhooks:', error);
+    }
 }
 
 // Setup event listeners
 function setupEventListeners() {
-    // Open settings
-    document.getElementById('openSettings').addEventListener('click', () => {
-        chrome.runtime.openOptionsPage();
-    });
+    console.log('Setting up event listeners');
     
     // Add webhook
-    document.getElementById('addWebhook').addEventListener('click', async () => {
-        const name = document.getElementById('webhookName').value.trim();
-        const url = document.getElementById('webhookUrl').value.trim();
-        const status = document.getElementById('webhookStatus');
-        
-        if (!name) {
-            showStatus(status, 'Please enter a webhook name', 'error');
-            return;
-        }
-        
-        if (!url) {
-            showStatus(status, 'Please enter a webhook URL', 'error');
-            return;
-        }
-        
-        if (!url.startsWith('https://discord.com/api/webhooks/')) {
-            showStatus(status, 'Invalid Discord webhook URL format', 'error');
-            return;
-        }
-        
-        try {
-            // Test the webhook before saving
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    content: '🔄 Testing webhook connection...',
-                    username: 'Tox'
-                })
-            });
+    const addWebhookBtn = document.getElementById('addWebhook');
+    const webhookName = document.getElementById('webhookName');
+    const webhookUrl = document.getElementById('webhookUrl');
+    const webhookStatus = document.getElementById('webhookStatus');
+    
+    if (addWebhookBtn && webhookName && webhookUrl && webhookStatus) {
+        addWebhookBtn.addEventListener('click', async () => {
+            console.log('Add webhook button clicked');
+            const name = webhookName.value.trim();
+            const url = webhookUrl.value.trim();
             
-            if (!response.ok) {
-                throw new Error('Failed to send test message');
-            }
-            
-            // If test succeeds, save the webhook
-            const { webhooks = [] } = await chrome.storage.local.get(['webhooks']);
-            
-            // Check if webhook already exists
-            if (webhooks.some(w => w.url === url)) {
-                showStatus(status, 'This webhook is already added', 'error');
+            if (!name || !url) {
+                showStatus(webhookStatus, 'Please enter both name and URL', 'error');
                 return;
             }
             
-            webhooks.push({ name, url });
-            await chrome.storage.local.set({ webhooks });
-            
-            showStatus(status, 'Webhook added successfully', 'success');
-            document.getElementById('webhookName').value = '';
-            document.getElementById('webhookUrl').value = '';
-            await loadWebhooks();
-        } catch (error) {
-            showStatus(status, 'Error testing webhook: ' + error.message, 'error');
-        }
-    });
-    
-    // Delete webhook
-    document.getElementById('webhooksList').addEventListener('click', async (e) => {
-        if (e.target.classList.contains('delete-webhook')) {
-            const url = e.target.dataset.url;
-            const { webhooks = [] } = await chrome.storage.local.get(['webhooks']);
-            const newWebhooks = webhooks.filter(w => w.url !== url);
-            await chrome.storage.local.set({ webhooks: newWebhooks });
-            await loadWebhooks();
-        }
-    });
+            try {
+                // Test webhook
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        content: '🔄 Testing webhook connection...',
+                        username: 'Tox'
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                // Save webhook
+                const { webhooks = [] } = await chrome.storage.local.get(['webhooks']);
+                if (webhooks.some(w => w.url === url)) {
+                    showStatus(webhookStatus, 'This webhook is already added', 'error');
+                    return;
+                }
+                
+                webhooks.push({ name, url });
+                await chrome.storage.local.set({ webhooks });
+                
+                // Clear inputs and reload list
+                webhookName.value = '';
+                webhookUrl.value = '';
+                await loadWebhooks();
+                showStatus(webhookStatus, 'Webhook added successfully', 'success');
+            } catch (error) {
+                console.error('Error adding webhook:', error);
+                showStatus(webhookStatus, `Error: ${error.message}`, 'error');
+            }
+        });
+    }
     
     // Join group
-    document.getElementById('joinGroup').addEventListener('click', async () => {
-        const groupIdInput = document.getElementById('groupIdInput');
-        const groupId = groupIdInput.value.trim();
-        const status = document.getElementById('groupStatus');
-        
-        if (!groupId) {
-            showStatus(status, 'Please enter a group ID', 'error');
-            return;
-        }
-        
-        try {
-            // Save the group ID
-            await chrome.storage.local.set({ groupId });
+    const joinGroupBtn = document.getElementById('joinGroup');
+    const groupIdInput = document.getElementById('groupIdInput');
+    const groupStatus = document.getElementById('groupStatus');
+    
+    if (joinGroupBtn && groupIdInput && groupStatus) {
+        joinGroupBtn.addEventListener('click', async () => {
+            console.log('Join group button clicked');
+            const groupId = groupIdInput.value.trim();
             
-            // Update the display
-            document.getElementById('groupDisplay').textContent = `Group: ${groupId}`;
+            if (!groupId) {
+                showStatus(groupStatus, 'Please enter a group ID', 'error');
+                return;
+            }
             
-            // Clear the input
-            groupIdInput.value = '';
-            
-            showStatus(status, 'Joined group successfully', 'success');
-        } catch (error) {
-            showStatus(status, 'Error joining group: ' + error.message, 'error');
-            console.error('Error joining group:', error);
-        }
-    });
+            try {
+                // Show connecting status
+                showStatus(groupStatus, 'Saving group ID...', 'pending');
+                
+                // Skip connection test and directly save the group ID
+                await chrome.storage.local.set({ groupId });
+                
+                // Update UI
+                const groupDisplay = document.getElementById('groupDisplay');
+                if (groupDisplay) {
+                    groupDisplay.textContent = `Group: ${groupId}`;
+                }
+                
+                // Clear input and show success
+                groupIdInput.value = '';
+                showStatus(groupStatus, 'Joined group successfully', 'success');
+                
+                console.log('Group joined successfully:', groupId);
+                
+                // Try to run the connection test in the background (don't wait for it)
+                try {
+                    chrome.runtime.sendMessage({
+                        action: 'testGroupConnection',
+                        data: { groupId }
+                    }, response => {
+                        console.log('Background connection test result:', response);
+                    });
+                } catch (testError) {
+                    console.warn('Background test failed (ignoring):', testError);
+                }
+            } catch (error) {
+                console.error('Error joining group:', error);
+                showStatus(groupStatus, `Error: ${error.message}`, 'error');
+            }
+        });
+    }
 }
 
 // Load history
@@ -163,15 +208,26 @@ async function loadHistory() {
 
 // Helper function to show status messages
 function showStatus(element, message, type) {
+    if (!element) {
+        console.error('Status element not found');
+        return;
+    }
+    
     element.textContent = message;
     element.className = `status ${type}`;
     element.style.display = 'block';
     
-    setTimeout(() => {
-        element.style.display = 'none';
-        element.textContent = '';
-        element.className = 'status';
-    }, 3000);
+    // Only auto-hide for success and error messages, not for pending status
+    if (type !== 'pending') {
+        setTimeout(() => {
+            // Fade out effect
+            element.style.opacity = '0';
+            setTimeout(() => {
+                element.style.display = 'none';
+                element.style.opacity = '1';
+            }, 300);
+        }, 3000);
+    }
 }
 
 // Helper function to format timestamp
