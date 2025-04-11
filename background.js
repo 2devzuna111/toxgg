@@ -29,7 +29,7 @@ let serviceWorkerInitialized = false;
 // Direct database monitoring with simple polling approach
 let lastKnownCount = 0;
 let monitoringInterval = null;
-const MONITOR_INTERVAL = 10000; // Check every 10 seconds
+const MONITOR_INTERVAL = 3000; // Check every 3 seconds
 
 // Load saved state
 chrome.storage.local.get(['clipboardEnabled'], (result) => {
@@ -216,7 +216,7 @@ function sendEntryNotification(entry) {
       // Parse the content if it's JSON
       const contentObj = JSON.parse(entry.content);
       if (contentObj.address) {
-        content = `Contract Address: ${contentObj.address} (${contentObj.chain})`;
+        content = `${contentObj.address} (${contentObj.chain})`;
       } else {
         content = JSON.stringify(contentObj);
       }
@@ -227,17 +227,31 @@ function sendEntryNotification(entry) {
     }
     
     const notificationData = {
-      id: `entry-${entry.id}-${Date.now()}`,
-      title: `${title} from ${entry.sender}`,
-      message: content.substring(0, 100) + (content.length > 100 ? '...' : ''),
+      id: `db-notification-${entry.id}-${Date.now()}`, // Changed prefix to ensure proper identification
+      title: 'TOX',
+      message: `CA: ${content.substring(0, 100)}${content.length > 100 ? '...' : ''}`,
       context: `Shared by Group: ${entry.group_id}`,
       timestamp: Date.now(),
-      entry: entry
+      entry: entry,
+      content: content,
+      groupId: entry.group_id,
+      textColor: '#000000',
+      type: 'db-notification' // Add notification type to identify it properly
     };
     
     console.log('Creating in-app notification:', notificationData);
     
-    // First, save to local storage for persistence
+    // First, save to local storage for persistence - this is now available to everyone
+    chrome.storage.sync.set({
+      [`global_notification_${notificationData.id}`]: notificationData
+    }, () => {
+      // Log any errors with storage
+      if (chrome.runtime.lastError) {
+        console.error('Storage error:', chrome.runtime.lastError);
+      }
+    });
+    
+    // Also save to local storage for this instance
     chrome.storage.local.set({
       [`notification_${notificationData.id}`]: notificationData
     });
@@ -254,19 +268,46 @@ function sendEntryNotification(entry) {
       
       // Save the updated list
       chrome.storage.local.set({ inAppNotifications: notifications }, () => {
+        // Also create native Chrome notification for better visibility
+        const notificationId = notificationData.id;
+        const notificationOptions = {
+          type: 'basic',
+          iconUrl: 'icons/48px.png',
+          title: notificationData.title,
+          message: notificationData.message,
+          contextMessage: notificationData.context,
+          priority: 2,
+          requireInteraction: true
+        };
+        
+        // Create Chrome notification to ensure visibility
+        chrome.notifications.create(notificationId, notificationOptions);
+        
         // Broadcast to all tabs that a new notification is available
         chrome.tabs.query({}, (tabs) => {
           tabs.forEach(tab => {
             try {
               chrome.tabs.sendMessage(tab.id, {
                 action: 'showInAppNotification',
-                notification: notificationData
+                notification: notificationData,
+                styleType: 'db-notification'
               }).catch(err => console.log('Tab not ready for notifications:', tab.id));
             } catch (err) {
               console.log('Error sending notification to tab:', err);
             }
           });
         });
+        
+        // Broadcast to everyone using runtime messaging
+        try {
+          chrome.runtime.sendMessage({
+            action: 'broadcastNotification',
+            notification: notificationData,
+            type: 'db-notification'
+          }).catch(err => console.log('No listeners for broadcast notification'));
+        } catch (err) {
+          console.log('Error broadcasting notification:', err);
+        }
         
         // Also broadcast to popups
         chrome.runtime.sendMessage({
@@ -289,6 +330,53 @@ async function initializeServiceWorker() {
         
         // Initialize Supabase
         await ensureSupabaseInitialized();
+        
+        // Clean up old notifications from sync storage (older than 24 hours)
+        chrome.storage.sync.get(null, (items) => {
+            const now = Date.now();
+            const oneDayAgo = now - (24 * 60 * 60 * 1000);
+            
+            const globalNotifications = Object.keys(items)
+                .filter(key => key.startsWith('global_notification_'))
+                .map(key => ({ key, data: items[key] }));
+                
+            // Remove old notifications
+            const keysToRemove = globalNotifications
+                .filter(item => item.data.timestamp < oneDayAgo)
+                .map(item => item.key);
+                
+            if (keysToRemove.length > 0) {
+                console.log(`Removing ${keysToRemove.length} old notifications from sync storage`);
+                chrome.storage.sync.remove(keysToRemove);
+            }
+                
+            // Display recent notifications
+            const recentNotifications = globalNotifications
+                .filter(item => item.data.timestamp >= oneDayAgo)
+                .map(item => item.data);
+                
+            if (recentNotifications.length > 0) {
+                console.log(`Found ${recentNotifications.length} recent notifications to display`);
+                
+                // Display each notification
+                recentNotifications.forEach(notification => {
+                    // Broadcast to all tabs
+                    chrome.tabs.query({}, (tabs) => {
+                        tabs.forEach(tab => {
+                            try {
+                                chrome.tabs.sendMessage(tab.id, {
+                                    action: 'showInAppNotification',
+                                    notification: notification,
+                                    styleType: 'db-notification'
+                                }).catch(err => console.log('Tab not ready for notifications:', tab.id));
+                            } catch (err) {
+                                console.log('Error sending notification to tab:', err);
+                            }
+                        });
+                    });
+                });
+            }
+        });
         
         // Start direct database monitoring
         startDirectDatabaseMonitoring();
@@ -1190,6 +1278,27 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
     }
 });
 
+// Function that sends messages to content scripts to show success notifications
+function sendCASuccessNotification(data) {
+    // Send to all tabs
+    chrome.tabs.query({}, (tabs) => {
+        tabs.forEach(tab => {
+            try {
+                chrome.tabs.sendMessage(tab.id, {
+                    action: 'showSuccessNotification',
+                    data: {
+                        content: data.content || '',
+                        groupId: data.groupId || '',
+                        url: data.url || ''
+                    }
+                }).catch(err => console.log('Tab not ready for notifications:', tab.id));
+            } catch (err) {
+                console.log('Error sending notification to tab:', err);
+            }
+        });
+    });
+}
+
 // Show notification for a new share
 function showNotification(share) {
     const notificationId = `share-${Date.now()}`;
@@ -1198,19 +1307,44 @@ function showNotification(share) {
     const content = typeof share.content === 'string' ? share.content : 
                     JSON.stringify(share.content);
     
-    chrome.notifications.create(notificationId, {
+    // Create the notification options with more rounded edges and better styling
+    const notificationOptions = {
         type: 'basic',
-        iconUrl: 'icons/icon48.png',
-        title: `New share from ${share.sender}`,
-        message: content.substring(0, 100) + (content.length > 100 ? '...' : ''),
-        contextMessage: share.title || 'Shared content',
-        buttons: [{ title: 'View' }],
+        iconUrl: 'icons/48px.png',
+        title: '✓ CA shared successfully',
+        message: `${content.substring(0, 80)}${content.length > 80 ? '...' : ''}`,
+        buttons: [{ title: 'OK' }],
         priority: 2
-    });
+    };
+    
+    // Create Chrome notification (these have limited styling options)
+    chrome.notifications.create(notificationId, notificationOptions);
     
     // Store the share data to use when the notification is clicked
     chrome.storage.local.set({
-        [`notification_${notificationId}`]: share
+        [`notification_${notificationId}`]: {
+            ...share,
+            content: content,
+            groupId: share.group_id || ''
+        }
+    });
+    
+    // Also send to all content scripts to show with Notyf
+    chrome.tabs.query({}, (tabs) => {
+        tabs.forEach(tab => {
+            try {
+                chrome.tabs.sendMessage(tab.id, {
+                    action: 'showSuccessNotification',
+                    data: {
+                        content: content,
+                        groupId: share.group_id || '',
+                        url: share.url || ''
+                    }
+                }).catch(err => console.log('Tab not ready for notifications:', tab.id));
+            } catch (err) {
+                console.log('Error sending notification to tab:', err);
+            }
+        });
     });
 }
 

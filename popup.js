@@ -607,6 +607,87 @@ async function loadNotifications() {
     }
 }
 
+// Initialize Notyf with custom options
+let notyf;
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Notyf if available
+    if (window.Notyf) {
+        notyf = new window.Notyf({
+            duration: 5000,
+            position: {
+                x: 'right',
+                y: 'top',
+            },
+            dismissible: true,
+            types: [
+                {
+                    type: 'success',
+                    background: '#10B981',
+                    icon: false
+                },
+                {
+                    type: 'error',
+                    background: '#EF4444',
+                    icon: false
+                },
+                {
+                    type: 'info',
+                    background: '#3B82F6',
+                    className: 'notyf__toast--info',
+                    icon: false
+                }
+            ]
+        });
+        
+        // Add custom styles for our notifications
+        const customStyles = document.createElement('style');
+        customStyles.textContent = `
+            .notyf__toast {
+                border-radius: 12px;
+                box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+                padding: 16px;
+            }
+            .notyf__toast--info {
+                background-color: var(--accent);
+            }
+            .notyf__ripple {
+                background-color: rgba(0, 0, 0, 0.07);
+            }
+            .notyf__toast--success .notyf__ripple {
+                background-color: rgba(16, 185, 129, 0.2);
+            }
+            .notyf__toast--error .notyf__ripple {
+                background-color: rgba(239, 68, 68, 0.2);
+            }
+            .notyf__toast--info .notyf__ripple {
+                background-color: rgba(59, 130, 246, 0.2);
+            }
+        `;
+        document.head.appendChild(customStyles);
+    }
+    
+    // ... rest of your DOMContentLoaded code ...
+});
+
+// Show inline alert with Notyf
+function showInlineAlert(message, type = 'info') {
+    if (notyf) {
+        if (type === 'success') {
+            notyf.success(message);
+        } else if (type === 'error') {
+            notyf.error(message);
+        } else {
+            notyf.open({
+                type: 'info',
+                message: message
+            });
+        }
+    } else {
+        // Fallback alert
+        alert(message);
+    }
+}
+
 // Add a notification to the UI
 function addNotificationToUI(notification) {
     const notificationsContainer = document.getElementById('notifications-container');
@@ -620,10 +701,10 @@ function addNotificationToUI(notification) {
     // Create notification element
     const notificationEl = document.createElement('div');
     notificationEl.className = 'notification-item';
-    notificationEl.style.padding = '10px';
+    notificationEl.style.padding = '16px 20px';
     notificationEl.style.marginBottom = '10px';
     notificationEl.style.backgroundColor = 'var(--bg-secondary)';
-    notificationEl.style.borderRadius = '8px';
+    notificationEl.style.borderRadius = '20px';
     notificationEl.style.border = '1px solid var(--border)';
     
     // Create header with title and close button
@@ -631,12 +712,55 @@ function addNotificationToUI(notification) {
     header.style.display = 'flex';
     header.style.justifyContent = 'space-between';
     header.style.alignItems = 'center';
-    header.style.marginBottom = '5px';
+    header.style.marginBottom = '16px';
+    
+    // Add TOX logo
+    const logo = document.createElement('div');
+    logo.style.display = 'flex';
+    logo.style.alignItems = 'center';
+    logo.style.gap = '12px';
+    
+    // Add green TOX icon SVG
+    const iconSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    iconSvg.setAttribute('width', '24');
+    iconSvg.setAttribute('height', '24');
+    iconSvg.setAttribute('viewBox', '0 0 24 24');
+    iconSvg.setAttribute('fill', 'none');
+    
+    // Create background circle
+    const rectBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rectBg.setAttribute('width', '24');
+    rectBg.setAttribute('height', '24');
+    rectBg.setAttribute('rx', '12');
+    rectBg.setAttribute('fill', '#4ADE80');
+    
+    // Create TOX logo paths
+    const path1 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path1.setAttribute('d', 'M14.4 9H15.6C15.8122 9 16.0157 9.08429 16.1657 9.23431C16.3157 9.38434 16.4 9.58783 16.4 9.8V16.2C16.4 16.4122 16.3157 16.6157 16.1657 16.7657C16.0157 16.9157 15.8122 17 15.6 17H8.4C8.18783 17 7.98434 16.9157 7.83431 16.7657C7.68429 16.6157 7.6 16.4122 7.6 16.2V9.8C7.6 9.58783 7.68429 9.38434 7.83431 9.23431C7.98434 9.08429 8.18783 9 8.4 9H9.6');
+    path1.setAttribute('stroke', 'white');
+    path1.setAttribute('stroke-width', '1.5');
+    path1.setAttribute('stroke-linecap', 'round');
+    path1.setAttribute('stroke-linejoin', 'round');
+    
+    const path2 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path2.setAttribute('d', 'M14 8L10 8C9.73478 8 9.48043 7.89464 9.29289 7.70711C9.10536 7.51957 9 7.26522 9 7V7C9 6.73478 9.10536 6.48043 9.29289 6.29289C9.48043 6.10536 9.73478 6 10 6H14C14.2652 6 14.5196 6.10536 14.7071 6.29289C14.8946 6.48043 15 6.73478 15 7V7C15 7.26522 14.8946 7.51957 14.7071 7.70711C14.5196 7.89464 14.2652 8 14 8Z');
+    path2.setAttribute('stroke', 'white');
+    path2.setAttribute('stroke-width', '1.5');
+    path2.setAttribute('stroke-linecap', 'round');
+    path2.setAttribute('stroke-linejoin', 'round');
+    
+    // Add all elements to SVG
+    iconSvg.appendChild(rectBg);
+    iconSvg.appendChild(path1);
+    iconSvg.appendChild(path2);
     
     const title = document.createElement('div');
     title.style.fontWeight = 'bold';
     title.style.color = 'var(--text-primary)';
-    title.textContent = notification.title || 'Notification';
+    title.textContent = 'TOX';
+    
+    logo.appendChild(iconSvg);
+    logo.appendChild(title);
     
     const closeBtn = document.createElement('button');
     closeBtn.innerHTML = '&times;';
@@ -658,15 +782,40 @@ function addNotificationToUI(notification) {
         removeNotificationFromStorage(notification.id);
     });
     
-    header.appendChild(title);
+    header.appendChild(logo);
     header.appendChild(closeBtn);
     
     // Create message body
+    const messageContainer = document.createElement('div');
+    messageContainer.style.color = 'var(--text-primary)';
+    messageContainer.style.fontSize = '14px';
+    messageContainer.style.marginBottom = '12px';
+    messageContainer.style.lineHeight = '1.5';
+    
+    // Add message text
     const message = document.createElement('div');
-    message.style.color = 'var(--text-primary)';
-    message.style.fontSize = '14px';
-    message.style.marginBottom = '5px';
     message.textContent = notification.message || '';
+    message.style.marginBottom = '8px';
+    messageContainer.appendChild(message);
+    
+    // Add content if available
+    if (notification.content) {
+        const contentInfo = document.createElement('div');
+        contentInfo.style.color = 'var(--text-secondary)';
+        contentInfo.style.fontSize = '14px';
+        contentInfo.style.marginBottom = '4px';
+        contentInfo.textContent = `Contract address: ${notification.content}`;
+        messageContainer.appendChild(contentInfo);
+    }
+    
+    // Add group ID if available
+    if (notification.groupId) {
+        const groupInfo = document.createElement('div');
+        groupInfo.style.color = 'var(--text-secondary)';
+        groupInfo.style.fontSize = '14px';
+        groupInfo.textContent = `Group ID: ${notification.groupId}`;
+        messageContainer.appendChild(groupInfo);
+    }
     
     // Create footer with context and timestamp
     const footer = document.createElement('div');
@@ -674,6 +823,7 @@ function addNotificationToUI(notification) {
     footer.style.justifyContent = 'space-between';
     footer.style.color = 'var(--text-secondary)';
     footer.style.fontSize = '12px';
+    footer.style.marginTop = '8px';
     
     const context = document.createElement('div');
     context.textContent = notification.context || '';
@@ -684,10 +834,37 @@ function addNotificationToUI(notification) {
     footer.appendChild(context);
     footer.appendChild(timestamp);
     
+    // Add an OK button
+    const actionButton = document.createElement('button');
+    actionButton.textContent = 'OK';
+    actionButton.style.padding = '8px 20px';
+    actionButton.style.backgroundColor = 'var(--accent)';
+    actionButton.style.color = 'white';
+    actionButton.style.border = 'none';
+    actionButton.style.borderRadius = '8px';
+    actionButton.style.fontSize = '14px';
+    actionButton.style.fontWeight = '500';
+    actionButton.style.cursor = 'pointer';
+    actionButton.style.alignSelf = 'flex-end';
+    actionButton.style.marginTop = '12px';
+    actionButton.style.width = 'auto';
+    actionButton.addEventListener('click', () => {
+        notificationEl.remove();
+        
+        // If no notifications left, show empty state
+        if (notificationsContainer.children.length === 1 && notificationsContainer.children[0].id === 'no-notifications-msg') {
+            noNotificationsMsg.style.display = 'block';
+        }
+        
+        // Remove from storage
+        removeNotificationFromStorage(notification.id);
+    });
+    
     // Assemble notification
     notificationEl.appendChild(header);
-    notificationEl.appendChild(message);
+    notificationEl.appendChild(messageContainer);
     notificationEl.appendChild(footer);
+    notificationEl.appendChild(actionButton);
     
     // Add to container (at the top)
     if (notificationsContainer.firstChild && notificationsContainer.firstChild.id !== 'no-notifications-msg') {
@@ -800,30 +977,4 @@ function updateMonitoringStatus() {
             monitoringStatus.parentNode.appendChild(restartBtn);
         }
     });
-}
-
-// Function to show inline alerts instead of browser alerts
-function showInlineAlert(message, type) {
-    const container = document.createElement('div');
-    container.style.position = 'fixed';
-    container.style.top = '50%';
-    container.style.left = '50%';
-    container.style.transform = 'translate(-50%, -50%)';
-    container.style.backgroundColor = type === 'success' ? '#10b981' : '#ef4444';
-    container.style.color = 'white';
-    container.style.padding = '12px 16px';
-    container.style.borderRadius = '6px';
-    container.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
-    container.style.maxWidth = '80%';
-    container.style.zIndex = '10000';
-    container.style.textAlign = 'center';
-    container.textContent = message;
-    
-    document.body.appendChild(container);
-    
-    setTimeout(() => {
-        container.style.opacity = '0';
-        container.style.transition = 'opacity 0.3s';
-        setTimeout(() => container.remove(), 300);
-    }, 3000);
 } 

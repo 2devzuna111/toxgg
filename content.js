@@ -219,6 +219,197 @@ function createFloatingButton() {
             font-size: 12px;
             color: #6b7280;
         }
+
+        .tox-notification.clickable {
+            cursor: pointer;
+        }
+        
+        .tox-notification.clickable:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06);
+            transition: all 0.2s ease;
+        }
+        
+        .copy-feedback {
+            position: absolute;
+            bottom: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #4ADE80;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 10001;
+            pointer-events: none;
+        }
+
+        .tox-notifications-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 10000;
+            width: 380px;
+            max-height: 100vh;
+            overflow-y: visible;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            pointer-events: none;
+        }
+        
+        .tox-notification {
+            background-color: #ffffff;
+            border-radius: 20px;
+            padding: 18px 22px;
+            pointer-events: auto;
+            animation: slideIn 0.3s ease-out forwards;
+            max-width: 100%;
+            box-sizing: border-box;
+            position: relative;
+            margin-bottom: 0;
+            color: #000000; /* Default text color */
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08), 0 1px 4px rgba(0, 0, 0, 0.03);
+            border: 1px solid rgba(229, 231, 235, 0.5);
+            backdrop-filter: blur(8px);
+        }
+        
+        .tox-notification.success {
+            border-left: none;
+            display: flex;
+            flex-direction: column;
+            background: linear-gradient(to right bottom, #ffffff, #f9fafb);
+        }
+        
+        .tox-notification.db-notification {
+            border-left: 3px solid #4f46e5;
+            display: flex;
+            flex-direction: column;
+            background: linear-gradient(to right bottom, #ffffff, #f9fafb);
+        }
+        
+        .tox-notification.success .notification-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 18px;
+        }
+        
+        .tox-notification.db-notification .notification-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 18px;
+        }
+        
+        .tox-notification.success .success-icon,
+        .tox-notification.db-notification .success-icon {
+            width: 28px;
+            height: 28px;
+            margin-right: 14px;
+            flex-shrink: 0;
+        }
+        
+        .tox-notification.success .success-icon img,
+        .tox-notification.db-notification .success-icon img {
+            width: 28px;
+            height: 28px;
+        }
+        
+        .tox-notification.success .notification-title,
+        .tox-notification.db-notification .notification-title {
+            font-weight: 700;
+            font-size: 19px;
+            color: #000000;
+            margin: 0;
+        }
+        
+        .tox-notification.success .notification-content,
+        .tox-notification.db-notification .notification-content {
+            margin-top: 10px;
+            color: #000000;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        
+        .tox-notification.success .notification-detail,
+        .tox-notification.db-notification .notification-detail {
+            display: flex;
+            margin-top: 6px;
+            font-size: 14px;
+            color: #000000;
+            line-height: 1.6;
+        }
+        
+        .tox-notification.success .notification-detail-label,
+        .tox-notification.db-notification .notification-detail-label {
+            font-weight: 500;
+            color: #000000;
+        }
+        
+        .tox-notification.success .notification-detail-value,
+        .tox-notification.db-notification .notification-detail-value {
+            color: #000000;
+        }
+        
+        .tox-notification .close-button {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: none;
+            border: none;
+            padding: 4px;
+            cursor: pointer;
+            color: #9ca3af;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+        }
+        
+        .tox-notification .close-button:hover {
+            background-color: #f3f4f6;
+            color: #4b5563;
+        }
+        
+        .tox-notification .action-button {
+            padding: 9px 22px;
+            background-color: #4f46e5;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            align-self: flex-end;
+            margin-top: 16px;
+            transition: all 0.2s;
+            box-shadow: 0 2px 5px rgba(79, 70, 229, 0.2);
+        }
+        
+        .tox-notification .action-button:hover {
+            background-color: #4338ca;
+            transform: translateY(-1px);
+            box-shadow: 0 3px 7px rgba(79, 70, 229, 0.3);
+        }
+        
+        .tox-notification .notification-title {
+            font-weight: 700;
+            font-size: 19px;
+            color: #000000;
+            margin: 0;
+        }
+        
+        .tox-notification .notification-detail {
+            display: flex;
+            margin-top: 6px;
+            font-size: 14px;
+            color: #000000;
+            line-height: 1.6;
+            word-break: break-word;
+        }
     `;
     document.head.appendChild(style);
 
@@ -648,46 +839,6 @@ async function updateHistory(content) {
     }
 }
 
-function showNotification(message, isError = false) {
-    const notification = document.createElement('div');
-    notification.className = `tox-notification ${isError ? 'error' : 'success'}`;
-    notification.textContent = message;
-    document.body.appendChild(notification);
-
-    setTimeout(() => {
-        notification.classList.add('fade-out');
-        setTimeout(() => notification.remove(), 300);
-    }, 2000);
-}
-
-// Add notification styles
-const style = document.createElement('style');
-style.textContent = `
-    .tox-notification {
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        padding: 10px 20px;
-        border-radius: 4px;
-        color: white;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-        font-size: 14px;
-        z-index: 999999;
-        opacity: 1;
-        transition: opacity 0.3s ease;
-    }
-    .tox-notification.success {
-        background-color: #4CAF50;
-    }
-    .tox-notification.error {
-        background-color: #f44336;
-    }
-    .tox-notification.fade-out {
-        opacity: 0;
-    }
-`;
-document.head.appendChild(style);
-
 // Create and add the share button
 function createShareButton() {
     const button = document.createElement('button');
@@ -770,97 +921,114 @@ function createNotificationContainer() {
     style.textContent = `
         .tox-notifications-container {
             position: fixed;
-            top: 50%;
+            top: 20px;
             right: 20px;
-            transform: translateY(-50%);
             z-index: 10000;
-            width: 320px;
+            width: 380px;
             max-height: 100vh;
-            overflow-y: auto;
+            overflow-y: visible;
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 16px;
             pointer-events: none;
         }
         
         .tox-notification {
             background-color: #ffffff;
-            border-radius: 12px;
-            padding: 16px;
-            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+            border-radius: 20px;
+            padding: 18px 22px;
             pointer-events: auto;
             animation: slideIn 0.3s ease-out forwards;
             max-width: 100%;
             box-sizing: border-box;
             position: relative;
-            margin-bottom: 10px;
+            margin-bottom: 0;
+            color: #000000; /* Default text color */
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08), 0 1px 4px rgba(0, 0, 0, 0.03);
+            border: 1px solid rgba(229, 231, 235, 0.5);
+            backdrop-filter: blur(8px);
         }
         
         .tox-notification.success {
             border-left: none;
             display: flex;
             flex-direction: column;
+            background: linear-gradient(to right bottom, #ffffff, #f9fafb);
+        }
+        
+        .tox-notification.db-notification {
+            border-left: 3px solid #4f46e5;
+            display: flex;
+            flex-direction: column;
+            background: linear-gradient(to right bottom, #ffffff, #f9fafb);
         }
         
         .tox-notification.success .notification-header {
             display: flex;
             align-items: center;
-            margin-bottom: 12px;
+            margin-bottom: 18px;
         }
         
-        .tox-notification.success .success-icon {
-            width: 24px;
-            height: 24px;
-            background-color: #10b981;
-            border-radius: 50%;
+        .tox-notification.db-notification .notification-header {
             display: flex;
             align-items: center;
-            justify-content: center;
-            margin-right: 12px;
+            margin-bottom: 18px;
+        }
+        
+        .tox-notification.success .success-icon,
+        .tox-notification.db-notification .success-icon {
+            width: 28px;
+            height: 28px;
+            margin-right: 14px;
             flex-shrink: 0;
         }
         
-        .tox-notification.success .success-icon svg {
-            width: 14px;
-            height: 14px;
-            color: white;
+        .tox-notification.success .success-icon img,
+        .tox-notification.db-notification .success-icon img {
+            width: 28px;
+            height: 28px;
         }
         
-        .tox-notification.success .notification-title {
-            font-weight: 600;
-            font-size: 16px;
-            color: #111827;
+        .tox-notification.success .notification-title,
+        .tox-notification.db-notification .notification-title {
+            font-weight: 700;
+            font-size: 19px;
+            color: #000000;
             margin: 0;
         }
         
-        .tox-notification.success .notification-content {
-            margin-left: 36px;
-            color: #6b7280;
+        .tox-notification.success .notification-content,
+        .tox-notification.db-notification .notification-content {
+            margin-top: 10px;
+            color: #000000;
             font-size: 14px;
+            line-height: 1.6;
         }
         
-        .tox-notification.success .notification-detail {
+        .tox-notification.success .notification-detail,
+        .tox-notification.db-notification .notification-detail {
             display: flex;
-            justify-content: space-between;
-            margin-top: 4px;
+            margin-top: 6px;
             font-size: 14px;
-            color: #6b7280;
+            color: #000000;
+            line-height: 1.6;
         }
         
-        .tox-notification.success .notification-detail-label {
+        .tox-notification.success .notification-detail-label,
+        .tox-notification.db-notification .notification-detail-label {
             font-weight: 500;
-            color: #4b5563;
+            color: #000000;
         }
         
-        .tox-notification.success .notification-detail-value {
-            color: #6b7280;
-            text-align: right;
+        .tox-notification.success .notification-detail-value,
+        .tox-notification.db-notification .notification-detail-value {
+            color: #000000;
         }
         
         .tox-notification .close-button {
             position: absolute;
-            top: 8px;
-            right: 8px;
+            top: 12px;
+            right: 12px;
             background: none;
             border: none;
             padding: 4px;
@@ -870,13 +1038,76 @@ function createNotificationContainer() {
             display: flex;
             align-items: center;
             justify-content: center;
-            width: 20px;
-            height: 20px;
+            width: 24px;
+            height: 24px;
         }
         
         .tox-notification .close-button:hover {
             background-color: #f3f4f6;
             color: #4b5563;
+        }
+        
+        .tox-notification .action-button {
+            padding: 9px 22px;
+            background-color: #4f46e5;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            align-self: flex-end;
+            margin-top: 16px;
+            transition: all 0.2s;
+            box-shadow: 0 2px 5px rgba(79, 70, 229, 0.2);
+        }
+        
+        .tox-notification .action-button:hover {
+            background-color: #4338ca;
+            transform: translateY(-1px);
+            box-shadow: 0 3px 7px rgba(79, 70, 229, 0.3);
+        }
+        
+        .tox-notification .notification-title {
+            font-weight: 700;
+            font-size: 19px;
+            color: #000000;
+            margin: 0;
+        }
+        
+        .tox-notification .notification-detail {
+            display: flex;
+            margin-top: 6px;
+            font-size: 14px;
+            color: #000000;
+            line-height: 1.6;
+            word-break: break-word;
+        }
+        
+        .tox-notification.clickable {
+            cursor: pointer;
+        }
+        
+        .tox-notification.clickable:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06);
+            transition: all 0.2s ease;
+        }
+        
+        .copy-feedback {
+            position: absolute;
+            bottom: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #4ADE80;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 10001;
+            pointer-events: none;
         }
         
         @keyframes slideIn {
@@ -916,165 +1147,224 @@ function showInAppNotification(notification, styleType = '') {
     notificationEl.className = `tox-notification ${styleType}`;
     
     if (styleType === 'success') {
-        // Create success notification with checkmark icon
+        // Create success notification
+        const header = document.createElement('div');
+        header.className = 'notification-header';
+        
+        // Only add the icon if not specified to skip it
+        if (!notification.noIcon) {
+            const iconContainer = document.createElement('div');
+            iconContainer.className = 'success-icon';
+            
+            // Use a green TOX icon SVG directly
+            iconContainer.innerHTML = `
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect width="24" height="24" rx="12" fill="#4ADE80"/>
+                    <path d="M14.4 9H15.6C15.8122 9 16.0157 9.08429 16.1657 9.23431C16.3157 9.38434 16.4 9.58783 16.4 9.8V16.2C16.4 16.4122 16.3157 16.6157 16.1657 16.7657C16.0157 16.9157 15.8122 17 15.6 17H8.4C8.18783 17 7.98434 16.9157 7.83431 16.7657C7.68429 16.6157 7.6 16.4122 7.6 16.2V9.8C7.6 9.58783 7.68429 9.38434 7.83431 9.23431C7.98434 9.08429 8.18783 9 8.4 9H9.6" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M14 8L10 8C9.73478 8 9.48043 7.89464 9.29289 7.70711C9.10536 7.51957 9 7.26522 9 7V7C9 6.73478 9.10536 6.48043 9.29289 6.29289C9.48043 6.10536 9.73478 6 10 6H14C14.2652 6 14.5196 6.10536 14.7071 6.29289C14.8946 6.48043 15 6.73478 15 7V7C15 7.26522 14.8946 7.51957 14.7071 7.70711C14.5196 7.89464 14.2652 8 14 8Z" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            `;
+            
+            header.appendChild(iconContainer);
+        }
+        
+        const title = document.createElement('h3');
+        title.className = 'notification-title';
+        title.textContent = notification.title || 'TOX';
+        // Apply text color if specified
+        if (notification.textColor) {
+            title.style.color = notification.textColor;
+        }
+        
+        header.appendChild(title);
+        
+        // Create content area
+        const contentContainer = document.createElement('div');
+        contentContainer.className = 'notification-content';
+        
+        // Add contract address or shared content
+        const contentText = document.createElement('div');
+        contentText.className = 'notification-detail';
+        contentText.textContent = notification.content || '';
+        // Apply text color if specified
+        if (notification.textColor) {
+            contentText.style.color = notification.textColor;
+        }
+        contentContainer.appendChild(contentText);
+        
+        // Add Group ID information only if specified and not an autoHide notification
+        if (notification.groupId && !notification.autoHide) {
+            const groupInfo = document.createElement('div');
+            groupInfo.className = 'notification-detail';
+            groupInfo.textContent = `Group: ${notification.groupId}`;
+            // Apply text color if specified
+            if (notification.textColor) {
+                groupInfo.style.color = notification.textColor;
+            }
+            contentContainer.appendChild(groupInfo);
+        }
+        
+        notificationEl.appendChild(header);
+        notificationEl.appendChild(contentContainer);
+        
+        // Add OK button only if not autoHide
+        if (!notification.autoHide) {
+            const actionButton = document.createElement('button');
+            actionButton.className = 'action-button';
+            actionButton.textContent = 'OK';
+            actionButton.addEventListener('click', () => {
+                notificationEl.style.animation = 'fadeOut 0.3s forwards';
+                setTimeout(() => {
+                    notificationEl.remove();
+                }, 300);
+            });
+            notificationEl.appendChild(actionButton);
+        }
+    } else {
+        // Standard notification with TOX icon
         const header = document.createElement('div');
         header.className = 'notification-header';
         
         const iconContainer = document.createElement('div');
         iconContainer.className = 'success-icon';
+        
+        // Use a green TOX icon SVG directly
         iconContainer.innerHTML = `
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect width="24" height="24" rx="12" fill="#4ADE80"/>
+                <path d="M14.4 9H15.6C15.8122 9 16.0157 9.08429 16.1657 9.23431C16.3157 9.38434 16.4 9.58783 16.4 9.8V16.2C16.4 16.4122 16.3157 16.6157 16.1657 16.7657C16.0157 16.9157 15.8122 17 15.6 17H8.4C8.18783 17 7.98434 16.9157 7.83431 16.7657C7.68429 16.6157 7.6 16.4122 7.6 16.2V9.8C7.6 9.58783 7.68429 9.38434 7.83431 9.23431C7.98434 9.08429 8.18783 9 8.4 9H9.6" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M14 8L10 8C9.73478 8 9.48043 7.89464 9.29289 7.70711C9.10536 7.51957 9 7.26522 9 7V7C9 6.73478 9.10536 6.48043 9.29289 6.29289C9.48043 6.10536 9.73478 6 10 6H14C14.2652 6 14.5196 6.10536 14.7071 6.29289C14.8946 6.48043 15 6.73478 15 7V7C15 7.26522 14.8946 7.51957 14.7071 7.70711C14.5196 7.89464 14.2652 8 14 8Z" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
         `;
         
         const title = document.createElement('h3');
         title.className = 'notification-title';
-        title.textContent = notification.title || 'Content shared successfully!';
+        title.textContent = 'TOX';
+        // Apply text color if specified
+        if (notification.textColor) {
+            title.style.color = notification.textColor;
+        }
         
         header.appendChild(iconContainer);
         header.appendChild(title);
         
-        const content = document.createElement('div');
-        content.className = 'notification-content';
+        // Create content area
+        const contentContainer = document.createElement('div');
+        contentContainer.className = 'notification-content';
         
-        // Add content details if available
-        if (notification.content) {
-            const contentDetail = document.createElement('div');
-            contentDetail.className = 'notification-detail';
-            
-            const contentLabel = document.createElement('span');
-            contentLabel.className = 'notification-detail-label';
-            contentLabel.textContent = 'Content:';
-            
-            const contentValue = document.createElement('span');
-            contentValue.className = 'notification-detail-value';
-            contentValue.textContent = notification.content;
-            
-            contentDetail.appendChild(contentLabel);
-            contentDetail.appendChild(contentValue);
-            content.appendChild(contentDetail);
+        // Add message only (don't show content separately as it's included in the message)
+        const messageText = document.createElement('div');
+        messageText.className = 'notification-detail';
+        messageText.textContent = notification.message || '';
+        // Apply text color if specified
+        if (notification.textColor) {
+            messageText.style.color = notification.textColor;
         }
+        contentContainer.appendChild(messageText);
         
-        // Add group ID if available
-        if (notification.groupId) {
-            const groupDetail = document.createElement('div');
-            groupDetail.className = 'notification-detail';
-            
-            const groupLabel = document.createElement('span');
-            groupLabel.className = 'notification-detail-label';
-            groupLabel.textContent = 'Group ID:';
-            
-            const groupValue = document.createElement('span');
-            groupValue.className = 'notification-detail-value';
-            groupValue.textContent = notification.groupId;
-            
-            groupDetail.appendChild(groupLabel);
-            groupDetail.appendChild(groupValue);
-            content.appendChild(groupDetail);
+        // Add Group ID information if available and not autoHide
+        if (notification.groupId && !notification.autoHide) {
+            const groupInfo = document.createElement('div');
+            groupInfo.className = 'notification-detail';
+            groupInfo.textContent = `Group: ${notification.groupId}`;
+            // Apply text color if specified
+            if (notification.textColor) {
+                groupInfo.style.color = notification.textColor;
+            }
+            contentContainer.appendChild(groupInfo);
         }
-        
-        // Add URL if available
-        if (notification.url) {
-            const urlDetail = document.createElement('div');
-            urlDetail.className = 'notification-detail';
-            
-            const urlLabel = document.createElement('span');
-            urlLabel.className = 'notification-detail-label';
-            urlLabel.textContent = 'From:';
-            
-            const urlValue = document.createElement('span');
-            urlValue.className = 'notification-detail-value';
-            urlValue.textContent = notification.url.substring(0, 40) + (notification.url.length > 40 ? '...' : '');
-            
-            urlDetail.appendChild(urlLabel);
-            urlDetail.appendChild(urlValue);
-            content.appendChild(urlDetail);
-        }
-        
-        const closeBtn = document.createElement('button');
-        closeBtn.className = 'close-button';
-        closeBtn.innerHTML = '&times;';
-        closeBtn.addEventListener('click', () => {
-            notificationEl.style.animation = 'fadeOut 0.3s forwards';
-            setTimeout(() => {
-                notificationEl.remove();
-            }, 300);
-        });
         
         notificationEl.appendChild(header);
-        notificationEl.appendChild(content);
-        notificationEl.appendChild(closeBtn);
-    } else {
-        // Standard notification
-        const header = document.createElement('div');
-        header.className = 'notification-header';
+        notificationEl.appendChild(contentContainer);
         
-        const title = document.createElement('h3');
-        title.className = 'notification-title';
-        title.textContent = notification.title || 'Notification';
-        
-        const closeBtn = document.createElement('button');
-        closeBtn.className = 'close-button';
-        closeBtn.innerHTML = '&times;';
-        
-        header.appendChild(title);
-        
-        const content = document.createElement('div');
-        content.className = 'notification-content';
-        content.textContent = notification.message || '';
-        
-        const footer = document.createElement('div');
-        footer.className = 'notification-footer';
-        
-        const context = document.createElement('div');
-        context.textContent = notification.context || '';
-        
-        const timestamp = document.createElement('div');
-        timestamp.textContent = new Date(notification.timestamp).toLocaleTimeString();
-        
-        footer.appendChild(context);
-        footer.appendChild(timestamp);
-        
-        closeBtn.addEventListener('click', () => {
-            notificationEl.style.animation = 'fadeOut 0.3s forwards';
-            setTimeout(() => {
-                notificationEl.remove();
-            }, 300);
-        });
-        
-        notificationEl.appendChild(closeBtn);
-        notificationEl.appendChild(header);
-        notificationEl.appendChild(content);
-        notificationEl.appendChild(footer);
+        // Add OK button only if not autoHide - always append after content
+        if (!notification.autoHide) {
+            const actionButton = document.createElement('button');
+            actionButton.className = 'action-button';
+            actionButton.textContent = 'OK';
+            actionButton.addEventListener('click', () => {
+                notificationEl.style.animation = 'fadeOut 0.3s forwards';
+                setTimeout(() => {
+                    notificationEl.remove();
+                }, 300);
+            });
+            notificationEl.appendChild(actionButton);
+        }
     }
     
     // Add to container
     container.appendChild(notificationEl);
     
-    // Auto remove after 5 seconds
+    // Add click handler to copy content to clipboard
+    if (notification.content) {
+        notificationEl.addEventListener('click', (e) => {
+            // Don't trigger if clicking on the OK button
+            if (e.target.className === 'action-button') return;
+            
+            // Extract content for copying (removing "CA: " prefix if present)
+            let copyContent = notification.content;
+            if (notification.message && notification.message.startsWith('CA:')) {
+                copyContent = notification.message.substring(4).trim();
+            }
+            
+            // Copy to clipboard
+            navigator.clipboard.writeText(copyContent)
+                .then(() => {
+                    // Show feedback
+                    const feedback = document.createElement('div');
+                    feedback.className = 'copy-feedback';
+                    feedback.textContent = 'Copied to clipboard!';
+                    
+                    notificationEl.style.position = 'relative';
+                    notificationEl.appendChild(feedback);
+                    
+                    // Show feedback
+                    setTimeout(() => {
+                        feedback.style.opacity = '1';
+                    }, 50);
+                    
+                    // Hide feedback
+                    setTimeout(() => {
+                        feedback.style.opacity = '0';
+                        setTimeout(() => {
+                            feedback.remove();
+                        }, 300);
+                    }, 1500);
+                })
+                .catch(err => console.error('Failed to copy text: ', err));
+        });
+        
+        // Add clickable class
+        notificationEl.classList.add('clickable');
+    }
+    
+    // Auto remove after the specified time (default: 5 seconds)
+    const hideTime = notification.hideTime || 5000;
     setTimeout(() => {
-        if (notificationEl.parentNode) {
+        if (notificationEl && notificationEl.parentNode) {
             notificationEl.style.animation = 'fadeOut 0.3s forwards';
             setTimeout(() => {
-                if (notificationEl.parentNode) {
+                if (notificationEl && notificationEl.parentNode) {
                     notificationEl.remove();
                 }
             }, 300);
         }
-    }, 5000);
+    }, hideTime);
     
     return notificationEl;
 }
 
-// Function specifically for success notifications like "Content shared successfully"
+// Function specifically for success notifications like "CA shared successfully"
 function showSupabaseSuccessNotification(data) {
     const notification = {
-        title: 'Content shared successfully!',
+        title: '✓ CA shared successfully',
         content: data.content || '',
-        groupId: data.groupId || '',
         url: data.url || '',
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        noIcon: true,  // Flag to indicate we don't want the icon
+        textColor: '#000000',  // Add black text color
+        autoHide: true,  // Auto hide without OK button
+        hideTime: 2000   // Hide after 2 seconds
     };
     
     return showInAppNotification(notification, 'success');
@@ -1088,6 +1378,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
     else if (message.action === 'showSuccessNotification') {
         showSupabaseSuccessNotification(message.data);
+        sendResponse({ success: true });
+    }
+    else if (message.action === 'broadcastNotification') {
+        // Handle broadcasted notifications from other instances
+        if (message.type === 'db-notification') {
+            showInAppNotification(message.notification, 'db-notification');
+        }
         sendResponse({ success: true });
     }
     return true;
