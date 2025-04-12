@@ -360,8 +360,14 @@ function setupEventListeners() {
 
 // Load history
 async function loadHistory() {
-    const { history = [] } = await chrome.storage.local.get(['history']);
     const historyList = document.getElementById('historyList');
+    
+    if (!historyList) {
+        console.log('History list not found - skipping history loading');
+        return;
+    }
+    
+    const { history = [] } = await chrome.storage.local.get(['history']);
     
     if (history.length === 0) {
         historyList.innerHTML = '<div class="empty-state">No history available</div>';
@@ -422,7 +428,7 @@ function addTestNotificationButton() {
     const monitoringStatus = document.getElementById('monitoring-status');
     
     if (!dbTestButton || !directTestButton || !forcedTestButton) {
-        console.error('Test buttons not found in the HTML');
+        console.log('Test buttons not found in the HTML - skipping notification test setup');
         return;
     }
     
@@ -575,14 +581,15 @@ function addTestNotificationButton() {
 // Load notifications from storage
 async function loadNotifications() {
     try {
-        const { inAppNotifications = [] } = await chrome.storage.local.get(['inAppNotifications']);
         const notificationsContainer = document.getElementById('notifications-container');
-        const noNotificationsMsg = document.getElementById('no-notifications-msg');
         
         if (!notificationsContainer) {
-            console.error('Notifications container not found');
+            console.log('Notifications container not found - skipping notifications loading');
             return;
         }
+        
+        const { inAppNotifications = [] } = await chrome.storage.local.get(['inAppNotifications']);
+        const noNotificationsMsg = document.getElementById('no-notifications-msg');
         
         // Clear container except for the empty state message
         Array.from(notificationsContainer.children).forEach(child => {
@@ -691,11 +698,14 @@ function showInlineAlert(message, type = 'info') {
 // Add a notification to the UI
 function addNotificationToUI(notification) {
     const notificationsContainer = document.getElementById('notifications-container');
-    const noNotificationsMsg = document.getElementById('no-notifications-msg');
     
-    if (!notificationsContainer) return;
+    if (!notificationsContainer) {
+        console.log('Notifications container not found - skipping notification UI update');
+        return;
+    }
     
     // Hide the empty state message
+    const noNotificationsMsg = document.getElementById('no-notifications-msg');
     if (noNotificationsMsg) noNotificationsMsg.style.display = 'none';
     
     // Create notification element

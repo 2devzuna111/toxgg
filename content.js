@@ -1373,6 +1373,10 @@ function showSupabaseSuccessNotification(data) {
 // Setup listener for notifications from background script
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === 'showInAppNotification') {
+        // If it's a db notification, clear any existing ones first
+        if (message.styleType === 'db-notification') {
+            clearDbNotifications();
+        }
         showInAppNotification(message.notification, message.styleType || '');
         sendResponse({ success: true });
     }
@@ -1383,12 +1387,36 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     else if (message.action === 'broadcastNotification') {
         // Handle broadcasted notifications from other instances
         if (message.type === 'db-notification') {
+            clearDbNotifications();
             showInAppNotification(message.notification, 'db-notification');
         }
         sendResponse({ success: true });
     }
+    else if (message.action === 'clearDbNotifications') {
+        clearDbNotifications();
+        sendResponse({ success: true });
+    }
     return true;
 });
+
+// Function to clear all DB notifications
+function clearDbNotifications() {
+    const container = document.querySelector('.tox-notifications-container');
+    if (!container) return;
+    
+    // Find all db-notification elements
+    const dbNotifications = container.querySelectorAll('.tox-notification.db-notification');
+    
+    // Remove each one with animation
+    dbNotifications.forEach(notification => {
+        notification.style.animation = 'fadeOut 0.3s forwards';
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.remove();
+            }
+        }, 300);
+    });
+}
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {

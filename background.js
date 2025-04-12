@@ -190,13 +190,23 @@ async function fetchAndNotifyNewEntries(count) {
     
     console.log(`Processing ${data.length} new entries for notifications:`, data);
     
-    // Process each new entry (newest first)
-    for (const entry of data) {
-      // Create notification for this entry
-      sendEntryNotification(entry);
-    }
+    // First, clear all previous db-notifications from storage
+    chrome.storage.local.get(['inAppNotifications'], (result) => {
+      let notifications = result.inAppNotifications || [];
+      // Filter out all db-notifications
+      notifications = notifications.filter(notification => 
+        !notification.id || !notification.id.startsWith('db-notification-')
+      );
+      
+      // Save the filtered list back
+      chrome.storage.local.set({ inAppNotifications: notifications });
+    });
     
-    console.log('All new entries processed');
+    // Process just the newest entry (first one in the data array)
+    const latestEntry = data[0];
+    sendEntryNotification(latestEntry);
+    
+    console.log('Latest entry processed');
   } catch (error) {
     console.error('Error processing new entries:', error);
     logErrorToStorage('Database', `Exception in fetchAndNotifyNewEntries: ${error.message}`, error);
@@ -241,13 +251,33 @@ function sendEntryNotification(entry) {
     
     console.log('Creating in-app notification:', notificationData);
     
-    // First, save to local storage for persistence - this is now available to everyone
-    chrome.storage.sync.set({
-      [`global_notification_${notificationData.id}`]: notificationData
-    }, () => {
-      // Log any errors with storage
-      if (chrome.runtime.lastError) {
-        console.error('Storage error:', chrome.runtime.lastError);
+    // First, remove all previous db-notifications from sync storage
+    chrome.storage.sync.get(null, (items) => {
+      const keys = Object.keys(items).filter(key => 
+        key.startsWith('global_notification_db-notification-')
+      );
+      
+      if (keys.length > 0) {
+        console.log(`Removing ${keys.length} old notifications from sync storage`);
+        chrome.storage.sync.remove(keys, () => {
+          // After removing old notifications, save the new one
+          chrome.storage.sync.set({
+            [`global_notification_${notificationData.id}`]: notificationData
+          }, () => {
+            if (chrome.runtime.lastError) {
+              console.error('Storage error:', chrome.runtime.lastError);
+            }
+          });
+        });
+      } else {
+        // If no old notifications, just save the new one
+        chrome.storage.sync.set({
+          [`global_notification_${notificationData.id}`]: notificationData
+        }, () => {
+          if (chrome.runtime.lastError) {
+            console.error('Storage error:', chrome.runtime.lastError);
+          }
+        });
       }
     });
     
@@ -256,18 +286,38 @@ function sendEntryNotification(entry) {
       [`notification_${notificationData.id}`]: notificationData
     });
     
+    // Clear any existing db-notifications in tabs
+    chrome.tabs.query({}, (tabs) => {
+      tabs.forEach(tab => {
+        try {
+          chrome.tabs.sendMessage(tab.id, {
+            action: 'clearDbNotifications'
+          }).catch(err => console.log('Tab not ready for notifications:', tab.id));
+        } catch (err) {
+          console.log('Error sending clear command to tab:', err);
+        }
+      });
+    });
+    
     // Then, get the current notification list
     chrome.storage.local.get(['inAppNotifications'], (result) => {
       const notifications = result.inAppNotifications || [];
-      notifications.unshift(notificationData);
+      
+      // Remove any existing db-notifications
+      const filteredNotifications = notifications.filter(notification => 
+        !notification.id || !notification.id.startsWith('db-notification-')
+      );
+      
+      // Add the new notification
+      filteredNotifications.unshift(notificationData);
       
       // Keep only the latest 20 notifications
-      if (notifications.length > 20) {
-        notifications.length = 20;
+      if (filteredNotifications.length > 20) {
+        filteredNotifications.length = 20;
       }
       
       // Save the updated list
-      chrome.storage.local.set({ inAppNotifications: notifications }, () => {
+      chrome.storage.local.set({ inAppNotifications: filteredNotifications }, () => {
         // Also create native Chrome notification for better visibility
         const notificationId = notificationData.id;
         const notificationOptions = {
@@ -336,6 +386,7 @@ async function initializeServiceWorker() {
             const now = Date.now();
             const oneDayAgo = now - (24 * 60 * 60 * 1000);
             
+            // Get all global notifications
             const globalNotifications = Object.keys(items)
                 .filter(key => key.startsWith('global_notification_'))
                 .map(key => ({ key, data: items[key] }));
@@ -349,30 +400,50 @@ async function initializeServiceWorker() {
                 console.log(`Removing ${keysToRemove.length} old notifications from sync storage`);
                 chrome.storage.sync.remove(keysToRemove);
             }
+            
+            // Only keep the most recent db notification
+            const dbNotifications = globalNotifications
+                .filter(item => 
+                    item.data.timestamp >= oneDayAgo && 
+                    item.data.id && 
+                    item.data.id.startsWith('db-notification-')
+                )
+                .sort((a, b) => b.data.timestamp - a.data.timestamp);
+            
+            // Display only most recent notification if any exist
+            if (dbNotifications.length > 0) {
+                console.log(`Found ${dbNotifications.length} db notifications, displaying most recent`);
                 
-            // Display recent notifications
-            const recentNotifications = globalNotifications
-                .filter(item => item.data.timestamp >= oneDayAgo)
-                .map(item => item.data);
+                // Get the most recent db notification
+                const latestNotification = dbNotifications[0].data;
                 
-            if (recentNotifications.length > 0) {
-                console.log(`Found ${recentNotifications.length} recent notifications to display`);
+                // Clear old notification keys (except the latest)
+                const oldNotificationKeys = dbNotifications
+                    .slice(1)
+                    .map(item => item.key);
                 
-                // Display each notification
-                recentNotifications.forEach(notification => {
-                    // Broadcast to all tabs
-                    chrome.tabs.query({}, (tabs) => {
-                        tabs.forEach(tab => {
-                            try {
-                                chrome.tabs.sendMessage(tab.id, {
-                                    action: 'showInAppNotification',
-                                    notification: notification,
-                                    styleType: 'db-notification'
-                                }).catch(err => console.log('Tab not ready for notifications:', tab.id));
-                            } catch (err) {
-                                console.log('Error sending notification to tab:', err);
-                            }
-                        });
+                if (oldNotificationKeys.length > 0) {
+                    chrome.storage.sync.remove(oldNotificationKeys);
+                }
+                
+                // Display the latest notification
+                chrome.tabs.query({}, (tabs) => {
+                    tabs.forEach(tab => {
+                        try {
+                            // First clear any existing notifications
+                            chrome.tabs.sendMessage(tab.id, {
+                                action: 'clearDbNotifications'
+                            }).catch(err => console.log('Tab not ready for clearing:', tab.id));
+                            
+                            // Then show the latest notification
+                            chrome.tabs.sendMessage(tab.id, {
+                                action: 'showInAppNotification',
+                                notification: latestNotification,
+                                styleType: 'db-notification'
+                            }).catch(err => console.log('Tab not ready for notifications:', tab.id));
+                        } catch (err) {
+                            console.log('Error sending notification to tab:', err);
+                        }
                     });
                 });
             }
