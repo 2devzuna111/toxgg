@@ -13,6 +13,11 @@ document.addEventListener('DOMContentLoaded', () => {
     loadUserProfile();
     setupEventListeners();
     loadHistory();
+    
+    // Debug load function to verify storage state
+    chrome.storage.local.get(['username', 'groupId'], (result) => {
+        console.log('Current storage values:', result);
+    });
 });
 
 // Load saved settings
@@ -34,42 +39,72 @@ async function loadSettings() {
 
 // Setup event listeners
 function setupEventListeners() {
+    console.log('Setting up event listeners');
+    
     // Save button
-    document.getElementById('saveBtn').addEventListener('click', saveSettings);
+    const saveBtn = document.getElementById('saveBtn');
+    if (saveBtn) {
+        saveBtn.addEventListener('click', saveSettings);
+    }
     
     // Reset button
-    document.getElementById('resetBtn').addEventListener('click', resetSettings);
+    const resetBtn = document.getElementById('resetBtn');
+    if (resetBtn) {
+        resetBtn.addEventListener('click', resetSettings);
+    }
     
     // Avatar input - limit to one character
-    document.getElementById('userAvatar').addEventListener('input', (e) => {
-        if (e.target.value.length > 1) {
-            e.target.value = e.target.value.slice(0, 1);
-        }
-        e.target.value = e.target.value.toUpperCase();
-    });
+    const userAvatar = document.getElementById('userAvatar');
+    if (userAvatar) {
+        userAvatar.addEventListener('input', (e) => {
+            if (e.target.value.length > 1) {
+                e.target.value = e.target.value.slice(0, 1);
+            }
+            e.target.value = e.target.value.toUpperCase();
+        });
+    }
 
     // Save profile
-    document.getElementById('saveProfile').addEventListener('click', () => {
-        const username = document.getElementById('username').value;
-        const groupId = document.getElementById('groupId').value;
-        const status = document.getElementById('profileStatus');
+    const saveProfileBtn = document.getElementById('saveProfile');
+    const usernameInput = document.getElementById('username');
+    const groupIdInput = document.getElementById('groupId');
+    const profileStatus = document.getElementById('profileStatus');
+    
+    if (saveProfileBtn && usernameInput && groupIdInput && profileStatus) {
+        console.log('Save profile button found, adding event listener');
+        
+        saveProfileBtn.addEventListener('click', () => {
+            console.log('Save profile button clicked');
+            const username = usernameInput.value;
+            const groupId = groupIdInput.value;
 
-        if (!username) {
-            showStatus(status, 'Please enter a username', 'error');
-            return;
-        }
-
-        chrome.storage.local.set({ 
-            username,
-            groupId
-        }, () => {
-            if (chrome.runtime.lastError) {
-                showStatus(status, 'Error saving profile: ' + chrome.runtime.lastError.message, 'error');
-            } else {
-                showStatus(status, 'Profile saved successfully', 'success');
+            if (!username) {
+                showStatus(profileStatus, 'Please enter a username', 'error');
+                return;
             }
+
+            console.log('Saving username:', username, 'Group ID:', groupId);
+            chrome.storage.local.set({ 
+                username,
+                groupId
+            }, () => {
+                if (chrome.runtime.lastError) {
+                    console.error('Error saving profile:', chrome.runtime.lastError);
+                    showStatus(profileStatus, 'Error saving profile: ' + chrome.runtime.lastError.message, 'error');
+                } else {
+                    console.log('Profile saved successfully');
+                    showStatus(profileStatus, 'Profile saved successfully', 'success');
+                }
+            });
         });
-    });
+    } else {
+        console.error('One or more profile elements not found in the DOM', {
+            saveProfileBtn: !!saveProfileBtn,
+            usernameInput: !!usernameInput,
+            groupIdInput: !!groupIdInput,
+            profileStatus: !!profileStatus
+        });
+    }
 }
 
 // Save settings
@@ -153,11 +188,20 @@ function loadUserProfile() {
 
 // Helper function to show status messages
 function showStatus(element, message, type) {
+    console.log('Showing status:', message, type);
+    if (!element) {
+        console.error('Status element not found');
+        return;
+    }
+    
     element.textContent = message;
     element.className = `status ${type}`;
+    element.style.display = 'block'; // Ensure it's visible
+    
     setTimeout(() => {
         element.textContent = '';
         element.className = 'status';
+        element.style.display = 'none';
     }, 3000);
 }
 

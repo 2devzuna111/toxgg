@@ -2,6 +2,29 @@
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Popup initialized');
     initializePopup();
+    
+    // Listen for changes to username or group in storage
+    chrome.storage.onChanged.addListener((changes, namespace) => {
+        if (namespace === 'local') {
+            // Update username if it changes
+            if (changes.username) {
+                const statusElem = document.getElementById('userStatus');
+                if (statusElem) {
+                    statusElem.textContent = changes.username.newValue || 'Guest';
+                }
+            }
+            
+            // Update group if it changes
+            if (changes.groupId) {
+                const groupDisplay = document.getElementById('groupDisplay');
+                if (groupDisplay) {
+                    groupDisplay.textContent = changes.groupId.newValue 
+                        ? `Group: ${changes.groupId.newValue}` 
+                        : 'No Group';
+                }
+            }
+        }
+    });
 });
 
 async function initializePopup() {
@@ -152,14 +175,14 @@ function showExtensionError() {
 async function initializeUserInfo() {
     console.log('Initializing user info');
     try {
-        const { username = 'Guest', userAvatar = 'U', groupId = '' } = 
+        const { username, userAvatar = 'U', groupId = '' } = 
             await chrome.storage.local.get(['username', 'userAvatar', 'groupId']);
         
         const statusElem = document.getElementById('userStatus');
         const avatarElem = document.getElementById('userAvatar');
         const groupDisplay = document.getElementById('groupDisplay');
         
-        if (statusElem) statusElem.textContent = username;
+        if (statusElem) statusElem.textContent = username || 'Guest';
         if (avatarElem) avatarElem.textContent = userAvatar;
         if (groupDisplay) groupDisplay.textContent = groupId ? `Group: ${groupId}` : 'No Group';
         
