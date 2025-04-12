@@ -549,8 +549,36 @@ function createFloatingButton() {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({
-                                    content: text,
-                                    username: 'TOX.GG'
+                                    "content": null,
+                                    "username": "TOX.GG",
+                                    "embeds": [
+                                        {
+                                            "title": "**CA Shared**",
+                                            "description": "`" + text + "`",
+                                            "color": 406276,
+                                            "fields": [
+                                                {
+                                                    "name": "Source",
+                                                    "value": pageTitle || "Unknown",
+                                                    "inline": true
+                                                },
+                                                {
+                                                    "name": "Shared by",
+                                                    "value": username || "Anonymous",
+                                                    "inline": true
+                                                },
+                                                {
+                                                    "name": "Quicklinks",
+                                                    "value": `[Photon](https://photon-sol.tinyastro.io/en/r/@RickBurpBot/${text}) | [Axiom](http://axiom.trade/t/${text}/@rick)`
+                                                }
+                                            ],
+                                            "footer": {
+                                                "text": "TOX.GG"
+                                            },
+                                            "timestamp": new Date().toISOString()
+                                        }
+                                    ],
+                                    "attachments": []
                                 })
                             }).then(response => {
                                 if (!response.ok) {
@@ -796,16 +824,49 @@ function stopClipboardMonitoring() {
 async function sendToWebhooks(content) {
     try {
         // Use callback pattern instead of await
-        chrome.storage.local.get(['webhooks'], function(result) {
+        chrome.storage.local.get(['webhooks', 'username'], function(result) {
             const webhooks = result.webhooks || [];
+            const username = result.username || 'Anonymous';
             if (webhooks.length === 0) return;
+            
+            // Get current page info
+            const currentUrl = window.location.href;
+            const pageTitle = document.title;
             
             const promises = webhooks.map(webhook => 
                 fetch(webhook.url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        content: content
+                        "content": null,
+                        "embeds": [
+                            {
+                                "title": "**CA Shared**",
+                                "description": "`" + content + "`",
+                                "color": 406276,
+                                "fields": [
+                                    {
+                                        "name": "Source",
+                                        "value": pageTitle || "Unknown",
+                                        "inline": true
+                                    },
+                                    {
+                                        "name": "Shared by",
+                                        "value": username || "Anonymous",
+                                        "inline": true
+                                    },
+                                    {
+                                        "name": "Quicklinks",
+                                        "value": `[Photon](https://photon-sol.tinyastro.io/en/r/@RickBurpBot/${content}) | [Axiom](http://axiom.trade/t/${content}/@rick)`
+                                    }
+                                ],
+                                "footer": {
+                                    "text": "TOX.GG"
+                                },
+                                "timestamp": new Date().toISOString()
+                            }
+                        ],
+                        "attachments": []
                     })
                 })
             );
