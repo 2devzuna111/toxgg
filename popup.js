@@ -629,17 +629,17 @@ document.addEventListener('DOMContentLoaded', function() {
             types: [
                 {
                     type: 'success',
-                    background: '#10B981',
+                    background: '#0A3B2C',
                     icon: false
                 },
                 {
                     type: 'error',
-                    background: '#EF4444',
+                    background: '#F87171',
                     icon: false
                 },
                 {
                     type: 'info',
-                    background: '#3B82F6',
+                    background: '#0F4D3A',
                     className: 'notyf__toast--info',
                     icon: false
                 }
@@ -661,13 +661,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 background-color: rgba(0, 0, 0, 0.07);
             }
             .notyf__toast--success .notyf__ripple {
-                background-color: rgba(16, 185, 129, 0.2);
+                background-color: rgba(10, 59, 44, 0.2);
             }
             .notyf__toast--error .notyf__ripple {
-                background-color: rgba(239, 68, 68, 0.2);
+                background-color: rgba(248, 113, 113, 0.2);
             }
             .notyf__toast--info .notyf__ripple {
-                background-color: rgba(59, 130, 246, 0.2);
+                background-color: rgba(15, 77, 58, 0.2);
             }
         `;
         document.head.appendChild(customStyles);

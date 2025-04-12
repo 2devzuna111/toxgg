@@ -116,9 +116,9 @@ function createFloatingButton() {
             width: 56px;
             height: 56px;
             border-radius: 50%;
-            background-color: #ffffff;
-            color: #6366f1;
-            border: 2px solid #e5e7eb;
+            background-color: #FFFFFF;
+            color: #0A3B2C;
+            border: 2px solid #E5E7EB;
             cursor: pointer;
             display: flex;
             align-items: center;
@@ -130,7 +130,7 @@ function createFloatingButton() {
         }
         
         .tox-floating-button:hover {
-            background-color: #f3f4f6;
+            background-color: #E5E7EB;
             transform: translateY(-2px);
             box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
         }
@@ -211,7 +211,7 @@ function createFloatingButton() {
         .tox-settings-panel input[type="range"] {
             width: 100%;
             margin: 8px 0;
-            accent-color: #6366f1;
+            accent-color: #0A3B2C;
         }
 
         .tox-settings-panel .size-value {
@@ -284,7 +284,7 @@ function createFloatingButton() {
         }
         
         .tox-notification.db-notification {
-            border-left: 3px solid #4f46e5;
+            border-left: 3px solid #0A3B2C;
             display: flex;
             flex-direction: column;
             background: linear-gradient(to right bottom, #ffffff, #f9fafb);
@@ -376,7 +376,7 @@ function createFloatingButton() {
         
         .tox-notification .action-button {
             padding: 9px 22px;
-            background-color: #4f46e5;
+            background-color: #0A3B2C;
             color: white;
             border: none;
             border-radius: 10px;
@@ -386,13 +386,13 @@ function createFloatingButton() {
             align-self: flex-end;
             margin-top: 16px;
             transition: all 0.2s;
-            box-shadow: 0 2px 5px rgba(79, 70, 229, 0.2);
+            box-shadow: 0 2px 5px rgba(10, 59, 44, 0.2);
         }
         
         .tox-notification .action-button:hover {
-            background-color: #4338ca;
+            background-color: #0F4D3A;
             transform: translateY(-1px);
-            box-shadow: 0 3px 7px rgba(79, 70, 229, 0.3);
+            box-shadow: 0 3px 7px rgba(10, 59, 44, 0.3);
         }
         
         .tox-notification .notification-title {
@@ -550,7 +550,7 @@ function createFloatingButton() {
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({
                                     content: text,
-                                    username: 'Tox Clipboard'
+                                    username: 'TOX.GG'
                                 })
                             }).then(response => {
                                 if (!response.ok) {
@@ -957,7 +957,7 @@ function createNotificationContainer() {
         }
         
         .tox-notification.db-notification {
-            border-left: 3px solid #4f46e5;
+            border-left: 3px solid #0A3B2C;
             display: flex;
             flex-direction: column;
             background: linear-gradient(to right bottom, #ffffff, #f9fafb);
@@ -1049,7 +1049,7 @@ function createNotificationContainer() {
         
         .tox-notification .action-button {
             padding: 9px 22px;
-            background-color: #4f46e5;
+            background-color: #0A3B2C;
             color: white;
             border: none;
             border-radius: 10px;
@@ -1059,13 +1059,13 @@ function createNotificationContainer() {
             align-self: flex-end;
             margin-top: 16px;
             transition: all 0.2s;
-            box-shadow: 0 2px 5px rgba(79, 70, 229, 0.2);
+            box-shadow: 0 2px 5px rgba(10, 59, 44, 0.2);
         }
         
         .tox-notification .action-button:hover {
-            background-color: #4338ca;
+            background-color: #0F4D3A;
             transform: translateY(-1px);
-            box-shadow: 0 3px 7px rgba(79, 70, 229, 0.3);
+            box-shadow: 0 3px 7px rgba(10, 59, 44, 0.3);
         }
         
         .tox-notification .notification-title {
