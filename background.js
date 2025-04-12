@@ -218,155 +218,166 @@ function sendEntryNotification(entry) {
   try {
     console.log('Attempting to send notification for entry:', entry);
     
-    // Extract data from the entry
-    const title = entry.title || 'New Share';
-    let content = '';
-    
-    try {
-      // Parse the content if it's JSON
-      const contentObj = JSON.parse(entry.content);
-      if (contentObj.address) {
-        content = `${contentObj.address} (${contentObj.chain})`;
-      } else {
-        content = JSON.stringify(contentObj);
-      }
-    } catch (e) {
-      // Just use the content as is
-      content = entry.content;
-      console.log('Using raw content:', content);
-    }
-    
-    const notificationData = {
-      id: `db-notification-${entry.id}-${Date.now()}`, // Changed prefix to ensure proper identification
-      title: 'TOX',
-      message: `CA: ${content.substring(0, 100)}${content.length > 100 ? '...' : ''}`,
-      context: `Shared by Group: ${entry.group_id}`,
-      timestamp: Date.now(),
-      entry: entry,
-      content: content,
-      groupId: entry.group_id,
-      textColor: '#000000',
-      type: 'db-notification' // Add notification type to identify it properly
-    };
-    
-    console.log('Creating in-app notification:', notificationData);
-    
-    // First, remove all previous db-notifications from sync storage
-    chrome.storage.sync.get(null, (items) => {
-      const keys = Object.keys(items).filter(key => 
-        key.startsWith('global_notification_db-notification-')
-      );
+    // Check if the user is in the same group as the entry
+    chrome.storage.local.get(['groupId'], (result) => {
+      const userGroupId = result.groupId;
       
-      if (keys.length > 0) {
-        console.log(`Removing ${keys.length} old notifications from sync storage`);
-        chrome.storage.sync.remove(keys, () => {
-          // After removing old notifications, save the new one
-          chrome.storage.sync.set({
-            [`global_notification_${notificationData.id}`]: notificationData
-          }, () => {
-            if (chrome.runtime.lastError) {
-              console.error('Storage error:', chrome.runtime.lastError);
-            }
-          });
-        });
-      } else {
-        // If no old notifications, just save the new one
-        chrome.storage.sync.set({
-          [`global_notification_${notificationData.id}`]: notificationData
-        }, () => {
-          if (chrome.runtime.lastError) {
-            console.error('Storage error:', chrome.runtime.lastError);
-          }
-        });
-      }
-    });
-    
-    // Also save to local storage for this instance
-    chrome.storage.local.set({
-      [`notification_${notificationData.id}`]: notificationData
-    });
-    
-    // Clear any existing db-notifications in tabs
-    chrome.tabs.query({}, (tabs) => {
-      tabs.forEach(tab => {
+      // Only proceed if the user's group matches the entry's group or if user has no group set
+      if (!userGroupId || userGroupId === entry.group_id.toString()) {
+        console.log(`Group ID match: Entry group ${entry.group_id}, User group ${userGroupId}`);
+        
+        // Extract data from the entry
+        const title = entry.title || 'New Share';
+        let content = '';
+        
         try {
-          chrome.tabs.sendMessage(tab.id, {
-            action: 'clearDbNotifications'
-          }).catch(err => console.log('Tab not ready for notifications:', tab.id));
-        } catch (err) {
-          console.log('Error sending clear command to tab:', err);
+          // Parse the content if it's JSON
+          const contentObj = JSON.parse(entry.content);
+          if (contentObj.address) {
+            content = `${contentObj.address} (${contentObj.chain})`;
+          } else {
+            content = JSON.stringify(contentObj);
+          }
+        } catch (e) {
+          // Just use the content as is
+          content = entry.content;
+          console.log('Using raw content:', content);
         }
-      });
-    });
-    
-    // Then, get the current notification list
-    chrome.storage.local.get(['inAppNotifications'], (result) => {
-      const notifications = result.inAppNotifications || [];
-      
-      // Remove any existing db-notifications
-      const filteredNotifications = notifications.filter(notification => 
-        !notification.id || !notification.id.startsWith('db-notification-')
-      );
-      
-      // Add the new notification
-      filteredNotifications.unshift(notificationData);
-      
-      // Keep only the latest 20 notifications
-      if (filteredNotifications.length > 20) {
-        filteredNotifications.length = 20;
-      }
-      
-      // Save the updated list
-      chrome.storage.local.set({ inAppNotifications: filteredNotifications }, () => {
-        // Also create native Chrome notification for better visibility
-        const notificationId = notificationData.id;
-        const notificationOptions = {
-          type: 'basic',
-          iconUrl: 'icons/48px.png',
-          title: notificationData.title,
-          message: notificationData.message,
-          contextMessage: notificationData.context,
-          priority: 2,
-          requireInteraction: true
+        
+        const notificationData = {
+          id: `db-notification-${entry.id}-${Date.now()}`, // Changed prefix to ensure proper identification
+          title: 'TOX',
+          message: `CA: ${content.substring(0, 100)}${content.length > 100 ? '...' : ''}`,
+          context: `Shared by Group: ${entry.group_id}`,
+          timestamp: Date.now(),
+          entry: entry,
+          content: content,
+          groupId: entry.group_id,
+          textColor: '#000000',
+          type: 'db-notification' // Add notification type to identify it properly
         };
         
-        // Create Chrome notification to ensure visibility
-        chrome.notifications.create(notificationId, notificationOptions);
+        console.log('Creating in-app notification:', notificationData);
         
-        // Broadcast to all tabs that a new notification is available
+        // First, remove all previous db-notifications from sync storage
+        chrome.storage.sync.get(null, (items) => {
+          const keys = Object.keys(items).filter(key => 
+            key.startsWith('global_notification_db-notification-')
+          );
+          
+          if (keys.length > 0) {
+            console.log(`Removing ${keys.length} old notifications from sync storage`);
+            chrome.storage.sync.remove(keys, () => {
+              // After removing old notifications, save the new one
+              chrome.storage.sync.set({
+                [`global_notification_${notificationData.id}`]: notificationData
+              }, () => {
+                if (chrome.runtime.lastError) {
+                  console.error('Storage error:', chrome.runtime.lastError);
+                }
+              });
+            });
+          } else {
+            // If no old notifications, just save the new one
+            chrome.storage.sync.set({
+              [`global_notification_${notificationData.id}`]: notificationData
+            }, () => {
+              if (chrome.runtime.lastError) {
+                console.error('Storage error:', chrome.runtime.lastError);
+              }
+            });
+          }
+        });
+        
+        // Also save to local storage for this instance
+        chrome.storage.local.set({
+          [`notification_${notificationData.id}`]: notificationData
+        });
+        
+        // Clear any existing db-notifications in tabs
         chrome.tabs.query({}, (tabs) => {
           tabs.forEach(tab => {
             try {
               chrome.tabs.sendMessage(tab.id, {
-                action: 'showInAppNotification',
-                notification: notificationData,
-                styleType: 'db-notification'
+                action: 'clearDbNotifications'
               }).catch(err => console.log('Tab not ready for notifications:', tab.id));
             } catch (err) {
-              console.log('Error sending notification to tab:', err);
+              console.log('Error sending clear command to tab:', err);
             }
           });
         });
         
-        // Broadcast to everyone using runtime messaging
-        try {
-          chrome.runtime.sendMessage({
-            action: 'broadcastNotification',
-            notification: notificationData,
-            type: 'db-notification'
-          }).catch(err => console.log('No listeners for broadcast notification'));
-        } catch (err) {
-          console.log('Error broadcasting notification:', err);
-        }
-        
-        // Also broadcast to popups
-        chrome.runtime.sendMessage({
-          action: 'newNotification',
-          notification: notificationData
-        }).catch(err => console.log('No popup listening for notifications'));
-      });
+        // Then, get the current notification list
+        chrome.storage.local.get(['inAppNotifications'], (result) => {
+          const notifications = result.inAppNotifications || [];
+          
+          // Remove any existing db-notifications
+          const filteredNotifications = notifications.filter(notification => 
+            !notification.id || !notification.id.startsWith('db-notification-')
+          );
+          
+          // Add the new notification
+          filteredNotifications.unshift(notificationData);
+          
+          // Keep only the latest 20 notifications
+          if (filteredNotifications.length > 20) {
+            filteredNotifications.length = 20;
+          }
+          
+          // Save the updated list
+          chrome.storage.local.set({ inAppNotifications: filteredNotifications }, () => {
+            // Also create native Chrome notification for better visibility
+            const notificationId = notificationData.id;
+            const notificationOptions = {
+              type: 'basic',
+              iconUrl: 'icons/48px.png',
+              title: notificationData.title,
+              message: notificationData.message,
+              contextMessage: notificationData.context,
+              priority: 2,
+              requireInteraction: true
+            };
+            
+            // Create Chrome notification to ensure visibility
+            chrome.notifications.create(notificationId, notificationOptions);
+            
+            // Broadcast to all tabs that a new notification is available
+            chrome.tabs.query({}, (tabs) => {
+              tabs.forEach(tab => {
+                try {
+                  chrome.tabs.sendMessage(tab.id, {
+                    action: 'showInAppNotification',
+                    notification: notificationData,
+                    styleType: 'db-notification'
+                  }).catch(err => console.log('Tab not ready for notifications:', tab.id));
+                } catch (err) {
+                  console.log('Error sending notification to tab:', err);
+                }
+              });
+            });
+            
+            // Broadcast to everyone using runtime messaging
+            try {
+              chrome.runtime.sendMessage({
+                action: 'broadcastNotification',
+                notification: notificationData,
+                type: 'db-notification'
+              }).catch(err => console.log('No listeners for broadcast notification'));
+            } catch (err) {
+              console.log('Error broadcasting notification:', err);
+            }
+            
+            // Also broadcast to popups
+            chrome.runtime.sendMessage({
+              action: 'newNotification',
+              notification: notificationData
+            }).catch(err => console.log('No popup listening for notifications'));
+          });
+        });
+      } else {
+        console.log(`Notification skipped: Entry from group ${entry.group_id}, but user is in group ${userGroupId}`);
+      }
     });
-    
   } catch (error) {
     console.error('Error sending notification for entry:', error, entry);
     logErrorToStorage('Notifications', `Exception in sendEntryNotification: ${error.message}`, { entry, error });
