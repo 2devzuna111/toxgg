@@ -251,19 +251,19 @@ function createFloatingButton() {
             top: 20px;
             right: 20px;
             z-index: 10000;
-            width: 380px;
+            width: 450px;
             max-height: 100vh;
             overflow-y: visible;
             display: flex;
             flex-direction: column;
-            gap: 16px;
+            gap: 12px;
             pointer-events: none;
         }
         
         .tox-notification {
             background-color: #ffffff;
             border-radius: 20px;
-            padding: 18px 22px;
+            padding: 14px 16px;
             pointer-events: auto;
             animation: slideIn 0.3s ease-out forwards;
             max-width: 100%;
@@ -284,10 +284,14 @@ function createFloatingButton() {
         }
         
         .tox-notification.db-notification {
-            border-left: 3px solid #0A3B2C;
+            border-left: none;
             display: flex;
             flex-direction: column;
-            background: linear-gradient(to right bottom, #ffffff, #f9fafb);
+            background: #446E63;
+            border-radius: 12px;
+            box-shadow: none;
+            padding: 8px 14px;
+            border: 1px solid #FDFBF3;
         }
         
         .tox-notification.success .notification-header {
@@ -299,7 +303,7 @@ function createFloatingButton() {
         .tox-notification.db-notification .notification-header {
             display: flex;
             align-items: center;
-            margin-bottom: 18px;
+            margin-bottom: 6px;
         }
         
         .tox-notification.success .success-icon,
@@ -320,7 +324,7 @@ function createFloatingButton() {
         .tox-notification.db-notification .notification-title {
             font-weight: 700;
             font-size: 19px;
-            color: #000000;
+            color: #FDFBF3;
             margin: 0;
         }
         
@@ -337,19 +341,19 @@ function createFloatingButton() {
             display: flex;
             margin-top: 6px;
             font-size: 14px;
-            color: #000000;
+            color: #FDFBF3;
             line-height: 1.6;
         }
         
         .tox-notification.success .notification-detail-label,
         .tox-notification.db-notification .notification-detail-label {
             font-weight: 500;
-            color: #000000;
+            color: #FDFBF3;
         }
         
         .tox-notification.success .notification-detail-value,
         .tox-notification.db-notification .notification-detail-value {
-            color: #000000;
+            color: #FDFBF3;
         }
         
         .tox-notification .close-button {
@@ -375,22 +379,22 @@ function createFloatingButton() {
         }
         
         .tox-notification .action-button {
-            padding: 9px 22px;
-            background-color: #0A3B2C;
+            padding: 5px 16px;
+            background-color: #0E5042;
             color: white;
             border: none;
-            border-radius: 10px;
+            border-radius: 8px;
             font-size: 14px;
             font-weight: 500;
             cursor: pointer;
             align-self: flex-end;
-            margin-top: 16px;
+            margin-top: 5px;
             transition: all 0.2s;
             box-shadow: 0 2px 5px rgba(10, 59, 44, 0.2);
         }
         
         .tox-notification .action-button:hover {
-            background-color: #0F4D3A;
+            background-color: #074033;
             transform: translateY(-1px);
             box-shadow: 0 3px 7px rgba(10, 59, 44, 0.3);
         }
@@ -398,7 +402,7 @@ function createFloatingButton() {
         .tox-notification .notification-title {
             font-weight: 700;
             font-size: 19px;
-            color: #000000;
+            color: #FDFBF3;
             margin: 0;
         }
         
@@ -406,9 +410,32 @@ function createFloatingButton() {
             display: flex;
             margin-top: 6px;
             font-size: 14px;
-            color: #000000;
+            color: #FDFBF3;
             line-height: 1.6;
             word-break: break-word;
+        }
+
+        .tox-notification .notification-label {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 2px;
+            margin-top: 0;
+            color: #FDFBF3;
+        }
+        
+        .tox-notification .notification-value {
+            font-size: 15px;
+            word-break: break-all;
+            margin-bottom: 6px;
+            line-height: 1.4;
+            color: #FDFBF3;
+        }
+        
+        .tox-notification .notification-group {
+            font-size: 16px;
+            font-weight: bold;
+            margin-top: 2px;
+            color: #FDFBF3;
         }
     `;
     document.head.appendChild(style);
@@ -985,19 +1012,19 @@ function createNotificationContainer() {
             top: 20px;
             right: 20px;
             z-index: 10000;
-            width: 380px;
+            width: 450px;
             max-height: 100vh;
             overflow-y: visible;
             display: flex;
             flex-direction: column;
-            gap: 16px;
+            gap: 12px;
             pointer-events: none;
         }
         
         .tox-notification {
             background-color: #ffffff;
             border-radius: 20px;
-            padding: 18px 22px;
+            padding: 14px 16px;
             pointer-events: auto;
             animation: slideIn 0.3s ease-out forwards;
             max-width: 100%;
@@ -1018,10 +1045,14 @@ function createNotificationContainer() {
         }
         
         .tox-notification.db-notification {
-            border-left: 3px solid #0A3B2C;
+            border-left: none;
             display: flex;
             flex-direction: column;
-            background: linear-gradient(to right bottom, #ffffff, #f9fafb);
+            background: #446E63;
+            border-radius: 12px;
+            box-shadow: none;
+            padding: 8px 14px;
+            border: 1px solid #FDFBF3;
         }
         
         .tox-notification.success .notification-header {
@@ -1033,7 +1064,7 @@ function createNotificationContainer() {
         .tox-notification.db-notification .notification-header {
             display: flex;
             align-items: center;
-            margin-bottom: 18px;
+            margin-bottom: 6px;
         }
         
         .tox-notification.success .success-icon,
@@ -1054,7 +1085,7 @@ function createNotificationContainer() {
         .tox-notification.db-notification .notification-title {
             font-weight: 700;
             font-size: 19px;
-            color: #000000;
+            color: #FDFBF3;
             margin: 0;
         }
         
@@ -1071,19 +1102,19 @@ function createNotificationContainer() {
             display: flex;
             margin-top: 6px;
             font-size: 14px;
-            color: #000000;
+            color: #FDFBF3;
             line-height: 1.6;
         }
         
         .tox-notification.success .notification-detail-label,
         .tox-notification.db-notification .notification-detail-label {
             font-weight: 500;
-            color: #000000;
+            color: #FDFBF3;
         }
         
         .tox-notification.success .notification-detail-value,
         .tox-notification.db-notification .notification-detail-value {
-            color: #000000;
+            color: #FDFBF3;
         }
         
         .tox-notification .close-button {
@@ -1109,22 +1140,22 @@ function createNotificationContainer() {
         }
         
         .tox-notification .action-button {
-            padding: 9px 22px;
-            background-color: #0A3B2C;
+            padding: 5px 16px;
+            background-color: #0E5042;
             color: white;
             border: none;
-            border-radius: 10px;
+            border-radius: 8px;
             font-size: 14px;
             font-weight: 500;
             cursor: pointer;
             align-self: flex-end;
-            margin-top: 16px;
+            margin-top: 5px;
             transition: all 0.2s;
             box-shadow: 0 2px 5px rgba(10, 59, 44, 0.2);
         }
         
         .tox-notification .action-button:hover {
-            background-color: #0F4D3A;
+            background-color: #074033;
             transform: translateY(-1px);
             box-shadow: 0 3px 7px rgba(10, 59, 44, 0.3);
         }
@@ -1132,7 +1163,7 @@ function createNotificationContainer() {
         .tox-notification .notification-title {
             font-weight: 700;
             font-size: 19px;
-            color: #000000;
+            color: #FDFBF3;
             margin: 0;
         }
         
@@ -1140,7 +1171,7 @@ function createNotificationContainer() {
             display: flex;
             margin-top: 6px;
             font-size: 14px;
-            color: #000000;
+            color: #FDFBF3;
             line-height: 1.6;
             word-break: break-word;
         }
@@ -1219,11 +1250,7 @@ function showInAppNotification(notification, styleType = '') {
             
             // Use a green TOX icon SVG directly
             iconContainer.innerHTML = `
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <rect width="24" height="24" rx="12" fill="#4ADE80"/>
-                    <path d="M14.4 9H15.6C15.8122 9 16.0157 9.08429 16.1657 9.23431C16.3157 9.38434 16.4 9.58783 16.4 9.8V16.2C16.4 16.4122 16.3157 16.6157 16.1657 16.7657C16.0157 16.9157 15.8122 17 15.6 17H8.4C8.18783 17 7.98434 16.9157 7.83431 16.7657C7.68429 16.6157 7.6 16.4122 7.6 16.2V9.8C7.6 9.58783 7.68429 9.38434 7.83431 9.23431C7.98434 9.08429 8.18783 9 8.4 9H9.6" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                    <path d="M14 8L10 8C9.73478 8 9.48043 7.89464 9.29289 7.70711C9.10536 7.51957 9 7.26522 9 7V7C9 6.73478 9.10536 6.48043 9.29289 6.29289C9.48043 6.10536 9.73478 6 10 6H14C14.2652 6 14.5196 6.10536 14.7071 6.29289C14.8946 6.48043 15 6.73478 15 7V7C15 7.26522 14.8946 7.51957 14.7071 7.70711C14.5196 7.89464 14.2652 8 14 8Z" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
+                <img src="https://i.ibb.co/GvKppZ1b/16px-copy.png" width="24" height="24" style="border-radius: 50%;">
             `;
             
             header.appendChild(iconContainer);
@@ -1231,7 +1258,8 @@ function showInAppNotification(notification, styleType = '') {
         
         const title = document.createElement('h3');
         title.className = 'notification-title';
-        title.textContent = notification.title || 'TOX';
+        title.textContent = notification.title || 'New CA Shared! | TOX';
+        title.style.color = '#FDFBF3';  // Force white color
         // Apply text color if specified
         if (notification.textColor) {
             title.style.color = notification.textColor;
@@ -1289,22 +1317,15 @@ function showInAppNotification(notification, styleType = '') {
         const iconContainer = document.createElement('div');
         iconContainer.className = 'success-icon';
         
-        // Use a green TOX icon SVG directly
+        // Use a green TOX icon SVG directly - lock icon for entry notifications
         iconContainer.innerHTML = `
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <rect width="24" height="24" rx="12" fill="#4ADE80"/>
-                <path d="M14.4 9H15.6C15.8122 9 16.0157 9.08429 16.1657 9.23431C16.3157 9.38434 16.4 9.58783 16.4 9.8V16.2C16.4 16.4122 16.3157 16.6157 16.1657 16.7657C16.0157 16.9157 15.8122 17 15.6 17H8.4C8.18783 17 7.98434 16.9157 7.83431 16.7657C7.68429 16.6157 7.6 16.4122 7.6 16.2V9.8C7.6 9.58783 7.68429 9.38434 7.83431 9.23431C7.98434 9.08429 8.18783 9 8.4 9H9.6" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M14 8L10 8C9.73478 8 9.48043 7.89464 9.29289 7.70711C9.10536 7.51957 9 7.26522 9 7V7C9 6.73478 9.10536 6.48043 9.29289 6.29289C9.48043 6.10536 9.73478 6 10 6H14C14.2652 6 14.5196 6.10536 14.7071 6.29289C14.8946 6.48043 15 6.73478 15 7V7C15 7.26522 14.8946 7.51957 14.7071 7.70711C14.5196 7.89464 14.2652 8 14 8Z" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
+            <img src="https://i.ibb.co/GvKppZ1b/16px-copy.png" width="24" height="24" style="border-radius: 50%;">
         `;
         
         const title = document.createElement('h3');
         title.className = 'notification-title';
-        title.textContent = 'TOX';
-        // Apply text color if specified
-        if (notification.textColor) {
-            title.style.color = notification.textColor;
-        }
+        title.textContent = 'New CA Shared!';
+        title.style.color = '#FDFBF3';  // Force white color
         
         header.appendChild(iconContainer);
         header.appendChild(title);
@@ -1313,25 +1334,38 @@ function showInAppNotification(notification, styleType = '') {
         const contentContainer = document.createElement('div');
         contentContainer.className = 'notification-content';
         
-        // Add message only (don't show content separately as it's included in the message)
-        const messageText = document.createElement('div');
-        messageText.className = 'notification-detail';
-        messageText.textContent = notification.message || '';
-        // Apply text color if specified
-        if (notification.textColor) {
-            messageText.style.color = notification.textColor;
+        // Format message to match the image layout
+        if (notification.message && notification.message.startsWith('CA:')) {
+            // Create CA label
+            const caLabel = document.createElement('div');
+            caLabel.className = 'notification-detail notification-label';
+            caLabel.textContent = 'CA:';
+            caLabel.style.marginBottom = '2px';
+            caLabel.style.color = '#FDFBF3';  // Force white color
+            contentContainer.appendChild(caLabel);
+            
+            // Extract CA value
+            const caContent = notification.message.substring(3).trim();
+            const caValue = document.createElement('div');
+            caValue.className = 'notification-detail notification-value';
+            caValue.textContent = caContent;
+            caValue.style.color = '#FDFBF3';  // Force white color
+            contentContainer.appendChild(caValue);
+        } else {
+            // For other message types
+            const messageText = document.createElement('div');
+            messageText.className = 'notification-detail';
+            messageText.textContent = notification.message || '';
+            messageText.style.color = '#FDFBF3';  // Force white color
+            contentContainer.appendChild(messageText);
         }
-        contentContainer.appendChild(messageText);
         
         // Add Group ID information if available and not autoHide
         if (notification.groupId && !notification.autoHide) {
             const groupInfo = document.createElement('div');
-            groupInfo.className = 'notification-detail';
+            groupInfo.className = 'notification-detail notification-group';
             groupInfo.textContent = `Group: ${notification.groupId}`;
-            // Apply text color if specified
-            if (notification.textColor) {
-                groupInfo.style.color = notification.textColor;
-            }
+            groupInfo.style.color = '#FDFBF3';  // Force white color
             contentContainer.appendChild(groupInfo);
         }
         
