@@ -1,18 +1,24 @@
-// TOX - Content script
-// This script is injected into pages and handles clipboard sharing functionality
-
-// Check if user is authenticated before showing the button
-function initializeToxFeatures() {
-    console.log('TOX: Initializing content script features');
+// At the beginning of the file, add the Supabase client library loader
+// Load Supabase client directly in content script
+(function() {
+    // Check if the user is authenticated before showing button
+    console.log('TOX: Content script initializing');
     chrome.storage.local.get(['toxAuthenticated'], function(result) {
+        console.log('TOX: Authentication status:', result.toxAuthenticated);
         if (result.toxAuthenticated === true) {
-            console.log('TOX: User is authenticated, creating floating button');
+            console.log('TOX: User is authenticated, creating button');
             createFloatingButton();
         } else {
-            console.log('TOX: User not authenticated, authentication is required in popup');
-            // No UI will be shown on the page - auth happens in the popup
+            console.log('TOX: User not authenticated, button will not be shown');
+            // Authentication will happen in popup, not in content script
         }
     });
+})();
+
+// Initialize the TOX extension features after authentication
+function initializeToxExtension() {
+    console.log('TOX: Initializing extension features');
+    createFloatingButton();
 }
 
 // Load Supabase client directly in content script
@@ -45,6 +51,265 @@ function loadSupabaseClient() {
         document.head.appendChild(script);
     });
 }
+
+// Authentication system
+function checkAuthentication() {
+    return new Promise((resolve) => {
+        chrome.storage.local.get(['toxAuthenticated'], (result) => {
+            console.log('Auth check result:', result.toxAuthenticated);
+            resolve(result.toxAuthenticated === true);
+        });
+    });
+}
+
+function authenticateUser(key) {
+    const validKey = "deadfnf";
+    if (key === validKey) {
+        chrome.storage.local.set({ toxAuthenticated: true });
+        return true;
+    }
+    return false;
+}
+
+function createAuthOverlay() {
+    console.log('Creating auth overlay');
+    // Remove any existing overlay
+    const existingOverlay = document.querySelector('.tox-auth-overlay');
+    if (existingOverlay) {
+        existingOverlay.remove();
+    }
+
+    // Create overlay element
+    const overlay = document.createElement('div');
+    overlay.className = 'tox-auth-overlay';
+    
+    // Create auth form
+    overlay.innerHTML = `
+        <div class="tox-auth-container">
+            <div class="tox-auth-header">
+                <img src="https://i.ibb.co/GvKppZ1b/16px-copy.png" width="36" height="36" style="border-radius: 50%;">
+                <h1>Welcome to TOX</h1>
+            </div>
+            <p class="tox-auth-description">Enter your activation key to continue</p>
+            <div class="tox-auth-form">
+                <input type="text" id="tox-auth-key" placeholder="Enter key" autocomplete="off">
+                <button id="tox-auth-submit">Activate</button>
+            </div>
+            <p id="tox-auth-error" class="tox-auth-error"></p>
+        </div>
+    `;
+    
+    // Add styles
+    const style = document.createElement('style');
+    style.textContent = `
+        .tox-auth-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(10, 59, 44, 0.85);
+            backdrop-filter: blur(4px);
+            z-index: 99999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        
+        .tox-auth-container {
+            background-color: #FFFFFF;
+            border-radius: 16px;
+            padding: 32px;
+            width: 360px;
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);
+            text-align: center;
+        }
+        
+        .tox-auth-header {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+        
+        .tox-auth-header h1 {
+            margin: 16px 0 0 0;
+            font-size: 24px;
+            color: #0A3B2C;
+        }
+        
+        .tox-auth-description {
+            color: #4B5563;
+            margin: 0 0 24px 0;
+            font-size: 14px;
+        }
+        
+        .tox-auth-form {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .tox-auth-form input {
+            padding: 12px;
+            border: 1px solid #E5E7EB;
+            border-radius: 8px;
+            font-size: 16px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        
+        .tox-auth-form input:focus {
+            border-color: #0A3B2C;
+        }
+        
+        .tox-auth-form button {
+            padding: 12px;
+            background-color: #0A3B2C;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .tox-auth-form button:hover {
+            background-color: #08302A;
+        }
+        
+        .tox-auth-error {
+            color: #DC2626;
+            font-size: 14px;
+            margin: 12px 0 0 0;
+            min-height: 20px;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+            20%, 40%, 60%, 80% { transform: translateX(5px); }
+        }
+        
+        .shake {
+            animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+        }
+    `;
+    document.head.appendChild(style);
+    document.body.appendChild(overlay);
+    
+    // Add event listeners
+    const input = overlay.querySelector('#tox-auth-key');
+    const button = overlay.querySelector('#tox-auth-submit');
+    const errorMsg = overlay.querySelector('#tox-auth-error');
+    
+    const validateKey = () => {
+        const key = input.value.trim();
+        if (key === '') {
+            errorMsg.textContent = 'Please enter a key';
+            input.classList.add('shake');
+            setTimeout(() => input.classList.remove('shake'), 500);
+            return;
+        }
+        
+        if (authenticateUser(key)) {
+            errorMsg.textContent = '';
+            errorMsg.style.color = '#059669';
+            errorMsg.textContent = 'Success! Initializing...';
+            
+            setTimeout(() => {
+                overlay.style.transition = 'opacity 0.5s';
+                overlay.style.opacity = '0';
+                setTimeout(() => {
+                    overlay.remove();
+                    // Initialize the extension UI after successful auth
+                    createFloatingButton();
+                }, 500);
+            }, 1000);
+        } else {
+            errorMsg.textContent = 'Invalid key, please try again';
+            input.style.animation = 'shake 0.5s';
+            setTimeout(() => input.style.animation = '', 500);
+        }
+    };
+    
+    button.addEventListener('click', validateKey);
+    input.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            validateKey();
+        }
+    });
+    
+    // Focus the input
+    setTimeout(() => input.focus(), 100);
+}
+
+// Single implementation of initialization function 
+async function initializeExtension() {
+    console.log('Initializing TOX extension');
+    try {
+        const isAuthenticated = await checkAuthentication();
+        console.log('Authentication status:', isAuthenticated);
+        
+        if (!isAuthenticated) {
+            console.log('User not authenticated, showing auth overlay');
+            createAuthOverlay();
+        } else {
+            console.log('User authenticated, creating floating button');
+            createFloatingButton();
+        }
+    } catch (error) {
+        console.error('Error during initialization:', error);
+        // Fallback to auth overlay
+        createAuthOverlay();
+    }
+}
+
+// Auto-initialize as early as possible
+(function() {
+    console.log('TOX extension loading...');
+    // Check if we can initialize immediately
+    if (document.body) {
+        console.log('Document body available, initializing now');
+        initializeExtension();
+    } else {
+        console.log('Document body not available, waiting for DOMContentLoaded');
+        document.addEventListener('DOMContentLoaded', initializeExtension);
+    }
+})();
+
+// Also initialize when the page is fully loaded
+window.addEventListener('load', () => {
+    console.log('Window load event fired');
+    if (!document.querySelector('.tox-floating-button') && 
+        !document.querySelector('.tox-auth-overlay')) {
+        console.log('No TOX elements found, initializing extension');
+        initializeExtension();
+    }
+});
+
+// Ensure components exist even on dynamic pages
+const observer = new MutationObserver(() => {
+    if (document.body && 
+        !document.querySelector('.tox-floating-button') && 
+        !document.querySelector('.tox-auth-overlay')) {
+        console.log('Body changed and no TOX elements found, initializing');
+        initializeExtension();
+    }
+});
+
+// Start observing once the document has a root element
+if (document.documentElement) {
+    observer.observe(document.documentElement, {
+        childList: true,
+        subtree: true
+    });
+}
+
+// Remove duplicate listeners from the previous implementation
+// Leave only the immediately-invoked function and window load event
 
 // Add a direct Supabase insertion function that follows the Supabase docs
 function directSupabaseInsert(groupId, content, sender, options = {}) {
@@ -185,6 +450,83 @@ function createFloatingButton() {
             transform: translateY(0);
         }
 
+        .tox-settings-panel {
+            position: fixed;
+            bottom: 90px;
+            right: 20px;
+            background-color: #ffffff;
+            color: #1f2937;
+            padding: 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: 'Inter', sans-serif;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.2s;
+            pointer-events: none;
+            z-index: 9999;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e5e7eb;
+            min-width: 200px;
+        }
+
+        .tox-settings-panel.visible {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+
+        .tox-settings-panel h3 {
+            margin: 0 0 12px 0;
+            font-size: 16px;
+            font-weight: 500;
+            color: #1f2937;
+        }
+
+        .tox-settings-panel label {
+            display: block;
+            margin-bottom: 8px;
+            color: #4b5563;
+        }
+
+        .tox-settings-panel input[type="range"] {
+            width: 100%;
+            margin: 8px 0;
+            accent-color: #0A3B2C;
+        }
+
+        .tox-settings-panel .size-value {
+            text-align: center;
+            font-size: 12px;
+            color: #6b7280;
+        }
+
+        .tox-notification.clickable {
+            cursor: pointer;
+        }
+        
+        .tox-notification.clickable:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06);
+            transition: all 0.2s ease;
+        }
+        
+        .copy-feedback {
+            position: absolute;
+            bottom: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #4ADE80;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 10001;
+            pointer-events: none;
+        }
+
         .tox-notifications-container {
             position: fixed;
             top: 20px;
@@ -215,6 +557,13 @@ function createFloatingButton() {
             backdrop-filter: blur(8px);
         }
         
+        .tox-notification.success {
+            border-left: none;
+            display: flex;
+            flex-direction: column;
+            background: linear-gradient(to right bottom, #ffffff, #f9fafb);
+        }
+        
         .tox-notification.db-notification {
             border-left: none;
             display: flex;
@@ -226,24 +575,148 @@ function createFloatingButton() {
             border: 1px solid #FDFBF3;
         }
         
-        @keyframes slideIn {
-            from {
-                transform: translateX(100%);
-                opacity: 0;
-            }
-            to {
-                transform: translateX(0);
-                opacity: 1;
-            }
+        .tox-notification.success .notification-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 18px;
         }
         
-        @keyframes fadeOut {
-            from {
-                opacity: 1;
-            }
-            to {
-                opacity: 0;
-            }
+        .tox-notification.db-notification .notification-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+        
+        .tox-notification.success .success-icon,
+        .tox-notification.db-notification .success-icon {
+            width: 28px;
+            height: 28px;
+            margin-right: 14px;
+            flex-shrink: 0;
+        }
+        
+        .tox-notification.success .success-icon img,
+        .tox-notification.db-notification .success-icon img {
+            width: 28px;
+            height: 28px;
+        }
+        
+        .tox-notification.success .notification-title,
+        .tox-notification.db-notification .notification-title {
+            font-weight: 700;
+            font-size: 19px;
+            color: #FDFBF3;
+            margin: 0;
+        }
+        
+        .tox-notification.success .notification-content,
+        .tox-notification.db-notification .notification-content {
+            margin-top: 10px;
+            color: #000000;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        
+        .tox-notification.success .notification-detail,
+        .tox-notification.db-notification .notification-detail {
+            display: flex;
+            margin-top: 6px;
+            font-size: 14px;
+            color: #FDFBF3;
+            line-height: 1.6;
+        }
+        
+        .tox-notification.success .notification-detail-label,
+        .tox-notification.db-notification .notification-detail-label {
+            font-weight: 500;
+            color: #FDFBF3;
+        }
+        
+        .tox-notification.success .notification-detail-value,
+        .tox-notification.db-notification .notification-detail-value {
+            color: #FDFBF3;
+        }
+        
+        .tox-notification .close-button {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: none;
+            border: none;
+            padding: 4px;
+            cursor: pointer;
+            color: #9ca3af;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+        }
+        
+        .tox-notification .close-button:hover {
+            background-color: #f3f4f6;
+            color: #4b5563;
+        }
+        
+        .tox-notification .action-button {
+            padding: 5px 16px;
+            background-color: #0E5042;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            align-self: flex-end;
+            margin-top: 5px;
+            transition: all 0.2s;
+            box-shadow: 0 2px 5px rgba(10, 59, 44, 0.2);
+        }
+        
+        .tox-notification .action-button:hover {
+            background-color: #074033;
+            transform: translateY(-1px);
+            box-shadow: 0 3px 7px rgba(10, 59, 44, 0.3);
+        }
+        
+        .tox-notification .notification-title {
+            font-weight: 700;
+            font-size: 19px;
+            color: #FDFBF3;
+            margin: 0;
+        }
+        
+        .tox-notification .notification-detail {
+            display: flex;
+            margin-top: 6px;
+            font-size: 14px;
+            color: #FDFBF3;
+            line-height: 1.6;
+            word-break: break-word;
+        }
+
+        .tox-notification .notification-label {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 2px;
+            margin-top: 0;
+            color: #FDFBF3;
+        }
+        
+        .tox-notification .notification-value {
+            font-size: 15px;
+            word-break: break-all;
+            margin-bottom: 6px;
+            line-height: 1.4;
+            color: #FDFBF3;
+        }
+        
+        .tox-notification .notification-group {
+            font-size: 16px;
+            font-weight: bold;
+            margin-top: 2px;
+            color: #FDFBF3;
         }
     `;
     document.head.appendChild(style);
@@ -618,6 +1091,189 @@ function showTooltip(message) {
     }, 2000);
 }
 
+// Listen for changes to clipboard monitoring setting
+chrome.storage.onChanged.addListener((changes, namespace) => {
+    if (namespace === 'local' && changes.clipboardMonitor) {
+        if (changes.clipboardMonitor.newValue) {
+            startClipboardMonitoring();
+        } else {
+            stopClipboardMonitoring();
+        }
+    }
+});
+
+let clipboardInterval;
+let lastClipboardContent = '';
+
+function startClipboardMonitoring() {
+    if (clipboardInterval) return;
+
+    clipboardInterval = setInterval(async () => {
+        try {
+            const text = await navigator.clipboard.readText();
+            if (text && text !== lastClipboardContent) {
+                lastClipboardContent = text;
+                await sendToWebhooks(text);
+                await updateHistory(text);
+            }
+        } catch (error) {
+            console.error('Error reading clipboard:', error);
+        }
+    }, 1000);
+}
+
+function stopClipboardMonitoring() {
+    if (clipboardInterval) {
+        clearInterval(clipboardInterval);
+        clipboardInterval = null;
+    }
+}
+
+async function sendToWebhooks(content) {
+    try {
+        // Use callback pattern instead of await
+        chrome.storage.local.get(['webhooks', 'username'], function(result) {
+            const webhooks = result.webhooks || [];
+            const username = result.username || 'Anonymous';
+            if (webhooks.length === 0) return;
+            
+            // Get current page info
+            const currentUrl = window.location.href;
+            const pageTitle = document.title;
+            
+            const promises = webhooks.map(webhook => 
+                fetch(webhook.url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        "content": null,
+                        "embeds": [
+                            {
+                                "title": "**CA Shared**",
+                                "description": "`" + content + "`",
+                                "color": 406276,
+                                "fields": [
+                                    {
+                                        "name": "Source",
+                                        "value": pageTitle || "Unknown",
+                                        "inline": true
+                                    },
+                                    {
+                                        "name": "Shared by",
+                                        "value": username || "Anonymous",
+                                        "inline": true
+                                    },
+                                    {
+                                        "name": "Quicklinks",
+                                        "value": `[Photon](https://photon-sol.tinyastro.io/en/r/@RickBurpBot/${content}) | [Axiom](http://axiom.trade/t/${content}/@rick)`
+                                    }
+                                ],
+                                "footer": {
+                                    "text": "TOX.GG"
+                                },
+                                "timestamp": new Date().toISOString()
+                            }
+                        ],
+                        "attachments": []
+                    })
+                })
+            );
+            
+            Promise.all(promises)
+                .then(() => showNotification('Content sent to webhooks'))
+                .catch(error => {
+                    console.error('Error sending to webhooks:', error);
+                    showNotification('Failed to send content to webhooks', true);
+                });
+        });
+    } catch (error) {
+        console.error('Error in sendToWebhooks:', error);
+        showNotification('Failed to send content to webhooks', true);
+    }
+}
+
+async function updateHistory(content) {
+    try {
+        // Use callback pattern instead of await
+        chrome.storage.local.get(['history'], function(result) {
+            const history = result.history || [];
+            const newHistory = [
+                { content, timestamp: Date.now() },
+                ...history.slice(0, 49)
+            ];
+            chrome.storage.local.set({ history: newHistory });
+        });
+    } catch (error) {
+        console.error('Error updating history:', error);
+    }
+}
+
+// Create and add the share button
+function createShareButton() {
+    const button = document.createElement('button');
+    button.id = 'tox-share-button';
+    button.innerHTML = `
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"></path>
+            <polyline points="16 6 12 2 8 6"></polyline>
+            <line x1="12" y1="2" x2="12" y2="15"></line>
+        </svg>
+        Share
+    `;
+    
+    // Add styles
+    const style = document.createElement('style');
+    style.textContent = `
+        #tox-share-button {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background-color: #6366f1;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            z-index: 999999;
+            transition: all 0.2s;
+        }
+        
+        #tox-share-button:hover {
+            background-color: #4f46e5;
+        }
+        
+        #tox-share-button svg {
+            width: 16px;
+            height: 16px;
+        }
+    `;
+    document.head.appendChild(style);
+    
+    // Add click handler
+    button.addEventListener('click', async () => {
+        try {
+            const text = await navigator.clipboard.readText();
+            if (text) {
+                await sendToWebhooks(text);
+                await updateHistory(text);
+                showNotification('Content shared successfully');
+            } else {
+                showNotification('No content in clipboard', true);
+            }
+        } catch (error) {
+            console.error('Error reading clipboard:', error);
+            showNotification('Failed to share content', true);
+        }
+    });
+    
+    document.body.appendChild(button);
+}
+
 // Create a notification container for in-app notifications
 function createNotificationContainer() {
     // Check if container already exists
@@ -629,7 +1285,7 @@ function createNotificationContainer() {
     const container = document.createElement('div');
     container.className = 'tox-notifications-container';
     
-    // Add styles for notifications
+    // Add styles
     const style = document.createElement('style');
     style.textContent = `
         .tox-notifications-container {
@@ -648,7 +1304,7 @@ function createNotificationContainer() {
         
         .tox-notification {
             background-color: #ffffff;
-            border-radius: 12px;
+            border-radius: 20px;
             padding: 14px 16px;
             pointer-events: auto;
             animation: slideIn 0.3s ease-out forwards;
@@ -656,7 +1312,7 @@ function createNotificationContainer() {
             box-sizing: border-box;
             position: relative;
             margin-bottom: 0;
-            color: #000000;
+            color: #000000; /* Default text color */
             box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08), 0 1px 4px rgba(0, 0, 0, 0.03);
             border: 1px solid rgba(229, 231, 235, 0.5);
             backdrop-filter: blur(8px);
@@ -714,16 +1370,10 @@ function createNotificationContainer() {
             margin: 0;
         }
         
-        .tox-notification.success .notification-content {
-            margin-top: 10px;
-            color: #000000;
-            font-size: 14px;
-            line-height: 1.6;
-        }
-        
+        .tox-notification.success .notification-content,
         .tox-notification.db-notification .notification-content {
             margin-top: 10px;
-            color: #FDFBF3;
+            color: #000000;
             font-size: 14px;
             line-height: 1.6;
         }
@@ -735,7 +1385,6 @@ function createNotificationContainer() {
             font-size: 14px;
             color: #FDFBF3;
             line-height: 1.6;
-            word-break: break-word;
         }
         
         .tox-notification.success .notification-detail-label,
@@ -746,29 +1395,6 @@ function createNotificationContainer() {
         
         .tox-notification.success .notification-detail-value,
         .tox-notification.db-notification .notification-detail-value {
-            color: #FDFBF3;
-        }
-        
-        .tox-notification .notification-label {
-            font-size: 16px;
-            font-weight: bold;
-            margin-bottom: 2px;
-            margin-top: 0;
-            color: #FDFBF3;
-        }
-        
-        .tox-notification .notification-value {
-            font-size: 15px;
-            word-break: break-all;
-            margin-bottom: 6px;
-            line-height: 1.4;
-            color: #FDFBF3;
-        }
-        
-        .tox-notification .notification-group {
-            font-size: 16px;
-            font-weight: bold;
-            margin-top: 2px;
             color: #FDFBF3;
         }
         
@@ -813,6 +1439,22 @@ function createNotificationContainer() {
             background-color: #074033;
             transform: translateY(-1px);
             box-shadow: 0 3px 7px rgba(10, 59, 44, 0.3);
+        }
+        
+        .tox-notification .notification-title {
+            font-weight: 700;
+            font-size: 19px;
+            color: #FDFBF3;
+            margin: 0;
+        }
+        
+        .tox-notification .notification-detail {
+            display: flex;
+            margin-top: 6px;
+            font-size: 14px;
+            color: #FDFBF3;
+            line-height: 1.6;
+            word-break: break-word;
         }
         
         .tox-notification.clickable {
@@ -898,6 +1540,7 @@ function showInAppNotification(notification, styleType = '') {
         const title = document.createElement('h3');
         title.className = 'notification-title';
         title.textContent = notification.title || 'New CA Shared! | TOX';
+        title.style.color = '#FDFBF3';  // Force white color
         // Apply text color if specified
         if (notification.textColor) {
             title.style.color = notification.textColor;
@@ -947,7 +1590,7 @@ function showInAppNotification(notification, styleType = '') {
             });
             notificationEl.appendChild(actionButton);
         }
-    } else if (styleType === 'db-notification') {
+    } else {
         // Standard notification with TOX icon
         const header = document.createElement('div');
         header.className = 'notification-header';
@@ -962,7 +1605,8 @@ function showInAppNotification(notification, styleType = '') {
         
         const title = document.createElement('h3');
         title.className = 'notification-title';
-        title.textContent = notification.title || 'New CA Shared!';
+        title.textContent = 'New CA Shared!';
+        title.style.color = '#FDFBF3';  // Force white color
         
         header.appendChild(iconContainer);
         header.appendChild(title);
@@ -978,6 +1622,7 @@ function showInAppNotification(notification, styleType = '') {
             caLabel.className = 'notification-detail notification-label';
             caLabel.textContent = 'CA:';
             caLabel.style.marginBottom = '2px';
+            caLabel.style.color = '#FDFBF3';  // Force white color
             contentContainer.appendChild(caLabel);
             
             // Extract CA value
@@ -985,12 +1630,14 @@ function showInAppNotification(notification, styleType = '') {
             const caValue = document.createElement('div');
             caValue.className = 'notification-detail notification-value';
             caValue.textContent = caContent;
+            caValue.style.color = '#FDFBF3';  // Force white color
             contentContainer.appendChild(caValue);
         } else {
             // For other message types
             const messageText = document.createElement('div');
             messageText.className = 'notification-detail';
-            messageText.textContent = notification.message || notification.content || '';
+            messageText.textContent = notification.message || '';
+            messageText.style.color = '#FDFBF3';  // Force white color
             contentContainer.appendChild(messageText);
         }
         
@@ -999,6 +1646,7 @@ function showInAppNotification(notification, styleType = '') {
             const groupInfo = document.createElement('div');
             groupInfo.className = 'notification-detail notification-group';
             groupInfo.textContent = `Group: ${notification.groupId}`;
+            groupInfo.style.color = '#FDFBF3';  // Force white color
             contentContainer.appendChild(groupInfo);
         }
         
@@ -1023,18 +1671,16 @@ function showInAppNotification(notification, styleType = '') {
     // Add to container
     container.appendChild(notificationEl);
     
-    // Add click handler to copy content to clipboard if there's content
-    if ((notification.content || notification.message) && !notification.preventCopy) {
+    // Add click handler to copy content to clipboard
+    if (notification.content) {
         notificationEl.addEventListener('click', (e) => {
             // Don't trigger if clicking on the OK button
             if (e.target.className === 'action-button') return;
             
             // Extract content for copying (removing "CA: " prefix if present)
-            let copyContent = notification.content || '';
+            let copyContent = notification.content;
             if (notification.message && notification.message.startsWith('CA:')) {
                 copyContent = notification.message.substring(4).trim();
-            } else if (notification.message) {
-                copyContent = notification.message;
             }
             
             // Copy to clipboard
@@ -1091,31 +1737,13 @@ function showSupabaseSuccessNotification(data) {
         content: data.content || '',
         url: data.url || '',
         timestamp: Date.now(),
-        noIcon: false,  // Show the icon
+        noIcon: true,  // Flag to indicate we don't want the icon
+        textColor: '#000000',  // Add black text color
         autoHide: true,  // Auto hide without OK button
         hideTime: 2000   // Hide after 2 seconds
     };
     
-    return showInAppNotification(notification, 'db-notification');
-}
-
-// Function to clear all DB notifications
-function clearDbNotifications() {
-    const container = document.querySelector('.tox-notifications-container');
-    if (!container) return;
-    
-    // Find all db-notification elements
-    const dbNotifications = container.querySelectorAll('.tox-notification.db-notification');
-    
-    // Remove each one with animation
-    dbNotifications.forEach(notification => {
-        notification.style.animation = 'fadeOut 0.3s forwards';
-        setTimeout(() => {
-            if (notification.parentNode) {
-                notification.remove();
-            }
-        }, 300);
-    });
+    return showInAppNotification(notification, 'success');
 }
 
 // Setup listener for notifications from background script
@@ -1147,31 +1775,90 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
 });
 
-// Initialize on page load with all necessary event listeners
-document.addEventListener('DOMContentLoaded', initializeToxFeatures);
-
-// Also initialize when the page is fully loaded
-window.addEventListener('load', () => {
-    if (!document.querySelector('.tox-floating-button')) {
-        initializeToxFeatures();
-    }
-});
-
-// For dynamic pages, observe DOM changes
-const observer = new MutationObserver(() => {
-    if (document.body && !document.querySelector('.tox-floating-button')) {
-        initializeToxFeatures();
-    }
-});
-
-if (document.documentElement) {
-    observer.observe(document.documentElement, { 
-        childList: true, 
-        subtree: true 
+// Function to clear all DB notifications
+function clearDbNotifications() {
+    const container = document.querySelector('.tox-notifications-container');
+    if (!container) return;
+    
+    // Find all db-notification elements
+    const dbNotifications = container.querySelectorAll('.tox-notification.db-notification');
+    
+    // Remove each one with animation
+    dbNotifications.forEach(notification => {
+        notification.style.animation = 'fadeOut 0.3s forwards';
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.remove();
+            }
+        }, 300);
     });
 }
 
-// Initialize immediately if document is already loaded
-if (document.readyState !== 'loading') {
-    initializeToxFeatures();
+// Add this function at the top of the file to check extension connection
+function checkExtensionConnection() {
+    console.log('Checking extension connection...');
+    showTooltip('Checking extension connection...');
+    
+    // Test connection to background page with a simple approach and longer timeout
+    return new Promise((resolve, reject) => {
+        const testMessage = { action: 'ping' };
+        
+        // Check if chrome.runtime is available
+        if (!chrome || !chrome.runtime) {
+            console.error('Chrome runtime not available');
+            showTooltip('Chrome extension API not available');
+            reject(new Error('Chrome runtime not available'));
+            return;
+        }
+        
+        // Check for immediate runtime errors that might indicate service worker issues
+        try {
+            // Log the extension ID to help diagnose issues
+            console.log('Extension ID:', chrome.runtime.id);
+            
+            // Set a longer timeout (5 seconds should be plenty)
+            const timeoutId = setTimeout(() => {
+                console.error('Connection timeout after 5 seconds');
+                reject(new Error('Connection timed out after 5 seconds'));
+            }, 5000);
+            
+            // Send a test message to the background script
+            chrome.runtime.sendMessage(testMessage, response => {
+                // Clear the timeout since we got a response
+                clearTimeout(timeoutId);
+                
+                // Check for runtime errors that happened during the sendMessage call
+                if (chrome.runtime.lastError) {
+                    const errorMessage = chrome.runtime.lastError.message;
+                    console.error('Runtime error during connection check:', errorMessage);
+                    
+                    // Log specific error information to help diagnose the issue
+                    if (errorMessage.includes('receiving end does not exist')) {
+                        console.error('Background service worker not running or not registered properly');
+                        showTooltip('Extension unavailable. Try reloading the extension.');
+                    } else {
+                        showTooltip('Extension error: ' + errorMessage);
+                    }
+                    
+                    reject(new Error('Connection error: ' + errorMessage));
+                    return;
+                }
+                
+                // Check if we got a valid response
+                if (response && response.success) {
+                    console.log('Connection successful:', response);
+                    showTooltip('Connected to extension!');
+                    resolve(response);
+                } else {
+                    console.error('Invalid response from background:', response);
+                    showTooltip('Extension returned invalid response');
+                    reject(new Error('Invalid response from extension'));
+                }
+            });
+        } catch (err) {
+            console.error('Exception during sendMessage:', err);
+            showTooltip('Extension error: ' + err.message);
+            reject(err);
+        }
+    });
 }

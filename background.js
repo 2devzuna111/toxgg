@@ -61,6 +61,16 @@ chrome.runtime.onInstalled.addListener(async () => {
     await initializeServiceWorker();
 });
 
+// Listen for extension installation or update
+chrome.runtime.onInstalled.addListener((details) => {
+    console.log('Extension installed or updated:', details.reason);
+    
+    // You can also handle updates if needed
+    // if (details.reason === 'update') {
+    //     // Handle update if needed
+    // }
+});
+
 // Start direct database monitoring
 function startDirectDatabaseMonitoring() {
   if (monitoringInterval) {

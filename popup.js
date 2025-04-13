@@ -1,7 +1,21 @@
-// Initialize popup
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('Popup initialized');
-    initializePopup();
+// Check authentication status first
+document.addEventListener('DOMContentLoaded', async function() {
+    console.log('Popup loaded - checking authentication');
+    
+    // Check if user is authenticated
+    chrome.storage.local.get(['toxAuthenticated'], function(result) {
+        console.log('Authentication status:', result.toxAuthenticated);
+        if (result.toxAuthenticated !== true) {
+            // Not authenticated, redirect to auth page
+            console.log('Not authenticated, redirecting to auth page');
+            window.location.href = 'auth.html';
+            return;
+        } else {
+            // User is authenticated, initialize popup
+            console.log('User authenticated, initializing popup');
+            initializePopup();
+        }
+    });
     
     // Listen for changes to username or group in storage
     chrome.storage.onChanged.addListener((changes, namespace) => {
