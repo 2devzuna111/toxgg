@@ -189,8 +189,8 @@ function showExtensionError() {
 async function initializeUserInfo() {
     console.log('Initializing user info');
     try {
-        const { username, userAvatar = 'U', groupId = '' } = 
-            await chrome.storage.local.get(['username', 'userAvatar', 'groupId']);
+        const { username, userAvatar = 'U', groupId = '', keyInfo } = 
+            await chrome.storage.local.get(['username', 'userAvatar', 'groupId', 'keyInfo']);
         
         const statusElem = document.getElementById('userStatus');
         const avatarElem = document.getElementById('userAvatar');
@@ -198,11 +198,37 @@ async function initializeUserInfo() {
         
         if (statusElem) statusElem.textContent = username || 'Guest';
         if (avatarElem) avatarElem.textContent = userAvatar;
-        if (groupDisplay) groupDisplay.textContent = groupId ? `Group: ${groupId}` : 'No Group';
+        if (groupDisplay) {
+            groupDisplay.textContent = groupId ? `Group: ${groupId}` : 'No Group';
+        }
         
-        console.log('User info initialized:', { username, groupId });
+        // Display wallet information if available
+        if (keyInfo && keyInfo.wallet) {
+            const walletDisplay = document.createElement('div');
+            walletDisplay.id = 'walletDisplay';
+            walletDisplay.className = 'user-info-item';
+            walletDisplay.style.fontSize = '12px';
+            walletDisplay.style.color = '#888';
+            walletDisplay.style.marginTop = '4px';
+            
+            // Format wallet address (first 6 chars + ... + last 4 chars)
+            const formattedWallet = keyInfo.wallet.length > 10 
+                ? `${keyInfo.wallet.substring(0, 6)}...${keyInfo.wallet.substring(keyInfo.wallet.length - 4)}`
+                : keyInfo.wallet;
+                
+            walletDisplay.textContent = `Wallet: ${formattedWallet}`;
+            
+            // Add tooltip with full wallet address
+            walletDisplay.title = keyInfo.wallet;
+            
+            // Add to the header
+            const headerDiv = groupDisplay.parentElement;
+            if (headerDiv) {
+                headerDiv.appendChild(walletDisplay);
+            }
+        }
     } catch (error) {
-        console.error('Error initializing user info:', error);
+        console.error('Error loading user info:', error);
     }
 }
 
